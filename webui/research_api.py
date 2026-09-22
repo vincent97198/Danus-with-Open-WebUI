@@ -4,7 +4,7 @@ from danus.integrations import literature
 from danus.integrations import search_settings
 from danus.integrations.matlas import search as theorem_search
 
-research_app = FastAPI(title="Danus 論文搜尋", description="Read-only arXiv/Crossref/IACR ePrint research tools for the local model.")
+research_app = FastAPI(title="Danus Paper Search", description="Read-only arXiv/Crossref/IACR ePrint research tools for the local model.")
 
 
 @research_app.get("/search", operation_id="search_papers")

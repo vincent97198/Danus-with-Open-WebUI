@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Translate the portal, legacy controls, search providers, API messages, and result exports into English.
+- Default the research assistant and new Open WebUI sessions to English.
+- Upgrade the managed research assistant to English when setup is rerun, while retaining unrelated model settings and existing chats.
+- Provide a complete English README and English date/time formatting.
+
 ## 0.1.0 — 2026-09-22
 
 - Initial standalone source package of the local research portal and supporting integration.

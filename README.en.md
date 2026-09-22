@@ -1,8 +1,8 @@
 # Danus Local Research Workspace
 
-A local web workspace combining Open WebUI chat, Danus math projects, paper search, and per-project search controls. The default entry point is **http://127.0.0.1:3001/**.
+An English-language local web workspace combining Open WebUI chat, Danus math projects, paper search, and per-project search controls. The default entry point is **http://127.0.0.1:3001/**.
 
-See [the full Traditional Chinese README](README.md) for features, troubleshooting, data management and publishing instructions.
+See [the full README](README.md) for features, troubleshooting, data management and publishing instructions.
 
 ## Requirements
 

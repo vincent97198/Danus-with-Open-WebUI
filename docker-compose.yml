@@ -38,6 +38,7 @@ services:
       OPENAI_API_KEY: local
       ENABLE_OLLAMA_API: "false"
       WEBUI_AUTH: "false"
+      DEFAULT_LOCALE: "en-US"
       ENABLE_WEB_SEARCH: "true"
       WEB_SEARCH_ENGINE: searxng
       SEARXNG_QUERY_URL: "http://local-llm-webui:7860/api/search/web?q=<query>&format=json"

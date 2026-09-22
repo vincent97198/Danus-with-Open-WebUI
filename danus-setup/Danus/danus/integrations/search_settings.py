@@ -15,18 +15,18 @@ from contextlib import contextmanager
 from pathlib import Path
 
 WEB_PROVIDERS = [
-    {"id": "bing", "name": "Bing", "description": "一般網頁搜尋 · 經 SearXNG", "kind": "web"},
-    {"id": "brave", "name": "Brave", "description": "一般網頁搜尋 · 經 SearXNG", "kind": "web"},
-    {"id": "duckduckgo", "name": "DuckDuckGo", "description": "一般網頁搜尋 · 經 SearXNG，可能要求驗證", "kind": "web"},
-    {"id": "google", "name": "Google", "description": "一般網頁搜尋 · 經 SearXNG，可能限流", "kind": "web"},
-    {"id": "wikipedia", "name": "Wikipedia", "description": "官方免費 API · 百科與背景知識", "kind": "api"},
-    {"id": "duckduckgo_answers", "name": "DuckDuckGo 即時答案", "description": "免費端點 · 摘要與定義，非完整網頁搜尋", "kind": "api"},
+    {"id": "bing", "name": "Bing", "description": "Web search via SearXNG", "kind": "web"},
+    {"id": "brave", "name": "Brave", "description": "Web search via SearXNG", "kind": "web"},
+    {"id": "duckduckgo", "name": "DuckDuckGo", "description": "Web search via SearXNG; may require a CAPTCHA", "kind": "web"},
+    {"id": "google", "name": "Google", "description": "Web search via SearXNG; may be rate limited", "kind": "web"},
+    {"id": "wikipedia", "name": "Wikipedia", "description": "Free official API for encyclopedia articles and background", "kind": "api"},
+    {"id": "duckduckgo_answers", "name": "DuckDuckGo Instant Answers", "description": "Free summaries and definitions, with limited web coverage", "kind": "api"},
 ]
 PAPER_PROVIDERS = [
-    {"id": "arxiv", "name": "arXiv", "description": "論文、摘要與原文閱讀"},
-    {"id": "crossref", "name": "Crossref", "description": "論文題名、作者、DOI 與書目資料"},
-    {"id": "iacr", "name": "IACR ePrint", "description": "密碼學論文目錄與摘要"},
-    {"id": "matlas", "name": "Matlas", "description": "數學定理與引理搜尋"},
+    {"id": "arxiv", "name": "arXiv", "description": "Papers, abstracts, and full-text reading"},
+    {"id": "crossref", "name": "Crossref", "description": "Paper titles, authors, DOIs, and bibliographic metadata"},
+    {"id": "iacr", "name": "IACR ePrint", "description": "Cryptography paper metadata and abstracts"},
+    {"id": "matlas", "name": "Matlas", "description": "Mathematical theorem and lemma search"},
 ]
 DEFAULT = {"enabled": True, "web_engines": ["bing", "wikipedia"],
            "paper_sources": ["arxiv", "crossref", "iacr", "matlas"]}
@@ -41,24 +41,24 @@ def settings_path():
 
 def validate(value):
     if not isinstance(value, dict) or type(value.get("enabled")) is not bool:
-        raise ValueError("搜尋開關格式不正確")
+        raise ValueError("Invalid search toggle format")
     clean = {"enabled": value["enabled"]}
     for field, providers in (("web_engines", WEB_PROVIDERS), ("paper_sources", PAPER_PROVIDERS)):
         choices = value.get(field)
         allowed = {p["id"] for p in providers}
         if not isinstance(choices, list) or any(not isinstance(v, str) or v not in allowed for v in choices):
-            raise ValueError("含有不支援的搜尋來源")
+            raise ValueError("Unsupported search source")
         clean[field] = list(dict.fromkeys(choices))
     return clean
 
 
 def _read(path):
     if path.is_symlink():
-        raise ValueError("搜尋設定路徑不正確")
+        raise ValueError("Invalid search preferences path")
     if not path.exists():
         return None
     if path.stat().st_size > 65536:
-        raise ValueError("搜尋設定過大")
+        raise ValueError("Search preferences file is too large")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -71,7 +71,7 @@ def read_global():
 
 def _write(path, value):
     if path.is_symlink():
-        raise ValueError("搜尋設定路徑不正確")
+        raise ValueError("Invalid search preferences path")
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + "." + uuid.uuid4().hex + ".tmp")
     tmp.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -80,7 +80,7 @@ def _write(path, value):
 
 def write_global(scope, value):
     if scope not in ("chat", "danus"):
-        raise ValueError("不支援的搜尋設定範圍")
+        raise ValueError("Unsupported search scope")
     clean = validate(value)
     path = settings_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -97,12 +97,12 @@ def project_settings(directory):
         return None
     path = Path(directory)
     if path.is_symlink() or not path.is_dir():
-        raise ValueError("找不到專案的搜尋設定")
+        raise ValueError("Project search preferences not found")
     value = _read(path / "search-settings.json")
     if value is None:
         return None
     if not isinstance(value, dict):
-        raise ValueError("專案搜尋設定格式不正確")
+        raise ValueError("Invalid project search preferences format")
     if value.get("inherit") is True:
         return None
     return validate(value)
@@ -111,7 +111,7 @@ def project_settings(directory):
 def write_project(directory, value=None):
     # The HTTP caller validates project containment before invoking this.
     if Path(directory).is_symlink():
-        raise ValueError("專案路徑不正確")
+        raise ValueError("Invalid project path")
     _write(Path(directory) / "search-settings.json",
            {"inherit": True} if value is None else {"inherit": False, **validate(value)})
 
@@ -138,14 +138,14 @@ def effective(kind=None, directory=None):
         custom = project_settings(directory) if kind == "danus" and directory else None
         return {**(custom or defaults), "scope": kind, "inherited": custom is None}
     except (OSError, ValueError, KeyError, TypeError) as exc:
-        return {**OFF, "scope": kind, "inherited": False, "error": "無法讀取搜尋設定，已暫停外部搜尋：" + str(exc)}
+        return {**OFF, "scope": kind, "inherited": False, "error": "Cannot read search preferences. Online search is paused: " + str(exc)}
 
 
 def denial(provider=None, *, policy=None):
     policy = policy or effective()
     reason = policy.get("error")
     if not policy["enabled"]:
-        reason = reason or "使用者已關閉此範圍的網路搜尋與論文工具。請依現有資料回答，不要改用其他工具、curl 或網頁繞過此設定。"
+        reason = reason or "The user has disabled web search and paper tools in this scope. Answer using existing information. Do not bypass this preference with other tools, curl, or websites."
     elif provider and provider not in policy["web_engines"] + policy["paper_sources"]:
-        reason = "使用者未啟用此搜尋來源：" + provider + "。請使用已啟用來源，不要繞過設定。"
+        reason = "The user has not enabled this search source: " + provider + ". Use enabled sources and do not bypass the preferences."
     return {"disabled": True, "error": reason, "results": [], "count": 0} if reason else None

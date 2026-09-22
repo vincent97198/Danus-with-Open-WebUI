@@ -67,7 +67,7 @@ class ProjectUpdate(BaseModel):
 
 def project_name(name):
     if not PROJECT_NAME.fullmatch(name):
-        raise HTTPException(400, "專案名稱須以小寫英文字母開頭，僅使用小寫英數字、- 或 _。")
+        raise HTTPException(400, "Project IDs must start with a lowercase letter and contain only lowercase letters, digits, - or _.")
     return name
 
 
@@ -93,7 +93,7 @@ def danus():
         from danus.execution import layout
         return cli, layout
     except ImportError as exc:
-        raise HTTPException(503, "Danus 尚未就緒，請確認 Docker 服務已啟動。") from exc
+        raise HTTPException(503, "Danus is not ready. Check that the Docker services are running.") from exc
 
 
 def run_danus(fn, *args, **kwargs):
@@ -102,7 +102,7 @@ def run_danus(fn, *args, **kwargs):
     except SystemExit as exc:
         raise HTTPException(400, str(exc)) from exc
     except OSError as exc:
-        raise HTTPException(500, f"Danus 執行失敗：{exc}") from exc
+        raise HTTPException(500, f"Danus operation failed: {exc}") from exc
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -129,14 +129,14 @@ async def models():
             response.raise_for_status()
             return response.json()
     except (httpx.HTTPError, ValueError) as exc:
-        raise HTTPException(503, f"無法取得模型：{exc}") from exc
+        raise HTTPException(503, f"Cannot retrieve models: {exc}") from exc
 
 
 @app.post("/api/chat")
 async def chat(request: Request):
     body = await request.json()
     if not isinstance(body, dict) or not isinstance(body.get("messages"), list):
-        raise HTTPException(400, "messages 格式不正確")
+        raise HTTPException(400, "Invalid messages format")
     body["model"] = MODEL_NAME
     return await forward_chat(body)
 
@@ -155,7 +155,7 @@ async def compatible_head():
 async def compatible_chat(request: Request):
     body = await request.json()
     if not isinstance(body, dict) or not isinstance(body.get("messages"), list):
-        raise HTTPException(400, "messages 格式不正確")
+        raise HTTPException(400, "Invalid messages format")
     # The Qwen Jinja template requires one system message at the beginning.
     system_text = []
     other_messages = []
@@ -181,7 +181,7 @@ async def forward_chat(body):
                 response.raise_for_status()
                 return response.json()
         except (httpx.HTTPError, ValueError) as exc:
-            raise HTTPException(502, f"模型呼叫失敗：{exc}") from exc
+            raise HTTPException(502, f"Model request failed: {exc}") from exc
 
     async def events():
         try:
@@ -189,7 +189,7 @@ async def forward_chat(body):
                 async with client.stream("POST", f"{MODEL_BASE_URL}/v1/chat/completions", json=body) as response:
                     if response.is_error:
                         detail = (await response.aread()).decode("utf-8", errors="replace")[:1000]
-                        yield f"data: {json.dumps({'error': f'模型回傳 HTTP {response.status_code}: {detail}'}, ensure_ascii=False)}\n\n"
+                        yield f"data: {json.dumps({'error': f'Model returned HTTP {response.status_code}: {detail}'}, ensure_ascii=False)}\n\n"
                         return
                     async for chunk in response.aiter_bytes():
                         yield chunk
@@ -232,7 +232,7 @@ async def projects():
 @app.post("/api/danus/projects")
 async def new_project(payload: NewProject):
     cli, layout = danus()
-    title = payload.title.strip() or payload.name.strip() or "新的數學專案"
+    title = payload.title.strip() or payload.name.strip() or "New math project"
     name = payload.name.strip()
     if not name:
         slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
@@ -242,7 +242,7 @@ async def new_project(payload: NewProject):
     name = project_name(name)
     problem = payload.problem.strip()
     if not problem:
-        raise HTTPException(400, "請輸入數學問題。")
+        raise HTTPException(400, "Enter a mathematical problem.")
     created = run_danus(cli.do_new, name, roles="high:1")
     (layout.project_dir(name) / "PROBLEM.md").write_text(problem + "\n", encoding="utf-8")
     write_json_file(layout.project_dir(name) / "portal.json",
@@ -263,7 +263,7 @@ async def project(name: str):
     name = project_name(name)
     directory = layout.project_dir(name)
     if not directory.is_dir():
-        raise HTTPException(404, "找不到專案")
+        raise HTTPException(404, "Project not found")
     problem_file = directory / "PROBLEM.md"
     return {"name": name, "title": read_json_file(directory / "portal.json").get("title") or name,
             "problem": problem_file.read_text(encoding="utf-8") if problem_file.exists() else "",
@@ -319,10 +319,10 @@ def progress_log_lines(lines):
 
 
 def redact_log_line(line: str) -> str:
-    line = re.sub(r"(?i)(bearer\s+)[a-z0-9._~-]{8,}", r"\1[隱藏]", line)
-    line = re.sub(r"(?i)\bsk-[a-z0-9_-]{8,}", "[隱藏金鑰]", line)
+    line = re.sub(r"(?i)(bearer\s+)[a-z0-9._~-]{8,}", r"\1[REDACTED]", line)
+    line = re.sub(r"(?i)\bsk-[a-z0-9_-]{8,}", "[REDACTED KEY]", line)
     line = re.sub(r"(?i)((?:api[_-]?key|access[_-]?token|password)\s*[:=]\s*['\"]?)[^\s,'\"]+",
-                  r"\1[隱藏]", line)
+                  r"\1[REDACTED]", line)
     return line
 
 
@@ -334,7 +334,7 @@ def activity_events(lines, worker, round_number):
 
     def flush():
         if current:
-            messages.append({"time": None, "kind": "模型更新",
+            messages.append({"time": None, "kind": "Model update",
                              "text": redact_log_line("\n".join(current))[:700]})
             current.clear()
 
@@ -350,7 +350,7 @@ def activity_events(lines, worker, round_number):
         match = re.match(r"^(\d{4}-\d\d-\d\dT\S+) (ERROR|WARN)\s+(.*)", line)
         if match:
             flush()
-            messages.append({"time": match.group(1), "kind": "錯誤" if match.group(2) == "ERROR" else "警告",
+            messages.append({"time": match.group(1), "kind": "Error" if match.group(2) == "ERROR" else "Warning",
                              "text": redact_log_line(match.group(3))[:700]})
             continue
         if in_update and line.strip():
@@ -376,7 +376,7 @@ async def authoritative_workers(name: str):
             response.raise_for_status()
             return response.json()["workers"]
     except (httpx.HTTPError, ValueError, KeyError) as exc:
-        raise HTTPException(503, "無法確認 worker 狀態，請稍後重試。") from exc
+        raise HTTPException(503, "Cannot check worker status. Please try again later.") from exc
 
 
 @app.get("/api/danus/projects/{name}/progress")
@@ -385,7 +385,7 @@ async def project_progress(name: str):
     name = project_name(name)
     directory = layout.project_dir(name)
     if not directory.is_dir() or directory.is_symlink():
-        raise HTTPException(404, "找不到專案")
+        raise HTTPException(404, "Project not found")
 
     workers = []
     events = []
@@ -429,7 +429,7 @@ def existing_project(name: str) -> Path:
     directory = layout.project_dir(name)
     if (directory.is_symlink() or not directory.is_dir()
             or directory.resolve().parent != root):
-        raise HTTPException(404, "找不到專案")
+        raise HTTPException(404, "Project not found")
     return directory
 
 
@@ -439,7 +439,7 @@ def get_search_preferences():
         return {**search_settings.read_global(), "providers": {
             "web": search_settings.WEB_PROVIDERS, "papers": search_settings.PAPER_PROVIDERS}}
     except (ValueError, OSError, KeyError, TypeError) as exc:
-        raise HTTPException(500, "搜尋設定無法讀取：" + str(exc)) from exc
+        raise HTTPException(500, "Cannot read search preferences: " + str(exc)) from exc
 
 
 @app.put("/api/search/settings/{scope}")
@@ -454,7 +454,7 @@ async def set_search_preferences(scope: str, payload: SearchPreferences):
             from configure_research import sync_chat_preferences
             await asyncio.to_thread(sync_chat_preferences)
         except (httpx.HTTPError, ValueError, KeyError):
-            warning = "設定已保存。聊天工具已套用；Open WebUI 內建工具選單尚未同步，請稍後再按儲存。"
+            warning = "Preferences saved and applied to chat tools. The Open WebUI built-in tool menu has not synced yet; save again later."
     return {"saved": saved, "warning": warning}
 
 
@@ -492,7 +492,7 @@ async def test_search_sources(payload: SearchPreferences):
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     if not profile["enabled"]:
-        return {"results": [], "message": "搜尋已關閉，沒有送出測試查詢。"}
+        return {"results": [], "message": "Search is off. No test queries were sent."}
     async def probe(engine):
         try:
             rows = await asyncio.to_thread(literature._web_provider, engine, "cryptography", 2)
@@ -518,13 +518,13 @@ def project_locks(name: str):
             home = layout.worker_dir(name, worker)
             lock_path = home / ".pid.lock"
             if home.is_symlink() or lock_path.is_symlink():
-                raise HTTPException(409, "專案包含不安全的工作目錄，無法刪除。")
+                raise HTTPException(409, "The project contains an unsafe worker directory and cannot be deleted.")
             lock = lock_path.open("a+")
             locks.append(lock)
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as exc:
-                raise HTTPException(409, "Worker 正在啟動，請稍後重試。") from exc
+                raise HTTPException(409, "A worker is starting. Please try again later.") from exc
         yield worker_names
     finally:
         for lock in locks:
@@ -539,19 +539,19 @@ def trash_root():
 
 def existing_trash_entry(item_id: str):
     if not re.fullmatch(r"[0-9a-f]{32}", item_id):
-        raise HTTPException(404, "找不到已刪除的專案")
+        raise HTTPException(404, "Trashed project not found")
     root = trash_root()
     entry = root / item_id
     source = entry / "project"
     if (root.is_symlink() or entry.is_symlink() or source.is_symlink()
             or not source.is_dir() or entry.resolve().parent != root.resolve()
             or source.resolve().parent != entry.resolve()):
-        raise HTTPException(404, "找不到已刪除的專案")
+        raise HTTPException(404, "Trashed project not found")
     metadata = read_json_file(entry / "metadata.json")
     if (metadata.get("id") != item_id
             or not isinstance(metadata.get("name"), str)
             or not PROJECT_NAME.fullmatch(metadata["name"])):
-        raise HTTPException(404, "回收筒資料不完整，無法處理此專案")
+        raise HTTPException(404, "Trash metadata is incomplete; this project cannot be processed.")
     return entry, metadata
 
 
@@ -561,12 +561,12 @@ def trash_operation(item_id: str):
     # Restore and permanent deletion must not operate on the same data at once.
     lock_path = trash_root() / ".operations.lock"
     if lock_path.is_symlink():
-        raise HTTPException(409, "回收筒無法使用，請檢查儲存空間。")
+        raise HTTPException(409, "Trash is unavailable. Check storage access.")
     with lock_path.open("a+") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
-            raise HTTPException(409, "回收筒正在處理另一個操作，請稍後再試。") from exc
+            raise HTTPException(409, "Another trash operation is in progress. Please try again later.") from exc
         try:
             yield existing_trash_entry(item_id)
         finally:
@@ -580,9 +580,9 @@ async def delete_project(name: str):
     _, layout = danus()
     with project_locks(name) as worker_names:
         if any(worker.get("alive") for worker in await authoritative_workers(name)):
-            raise HTTPException(409, "專案還在執行，請先按「立即停止」再刪除。")
+            raise HTTPException(409, "The project is running. Select Stop now before deleting it.")
         if layout.list_workers(name) != worker_names:
-            raise HTTPException(409, "專案已變動，請重新整理後再試。")
+            raise HTTPException(409, "The project has changed. Refresh and try again.")
         item_id = uuid.uuid4().hex
         entry = trash_root() / item_id
         entry.mkdir(parents=True)
@@ -594,7 +594,7 @@ async def delete_project(name: str):
         except OSError as exc:
             (entry / "metadata.json").unlink(missing_ok=True)
             entry.rmdir()
-            raise HTTPException(500, "無法移到回收筒，專案資料仍保留。") from exc
+            raise HTTPException(500, "Cannot move the project to Trash. Project data is still preserved.") from exc
     return {"name": name, "title": title, "deleted": True, "recoverable": True, "trash_id": item_id}
 
 
@@ -622,7 +622,7 @@ async def restore_project(item_id: str):
         name = metadata["name"]
         destination = layout.project_dir(name)
         if destination.exists() or destination.is_symlink():
-            raise HTTPException(409, "同名專案已存在，無法覆蓋。")
+            raise HTTPException(409, "A project with this name already exists and cannot be overwritten.")
         (entry / "project").rename(destination)
         (entry / "metadata.json").unlink()
         entry.rmdir()
@@ -636,14 +636,14 @@ def purge_trash_entry(item_id: str):
         try:
             shutil.rmtree(entry)
         except OSError as exc:
-            raise HTTPException(500, "永久刪除未完成，請重新整理後再試。") from exc
+            raise HTTPException(500, "Permanent deletion did not finish. Refresh and try again.") from exc
     return {"id": item_id, "name": metadata["name"], "deleted": True, "recoverable": False}
 
 
 @app.delete("/api/danus/trash/{item_id}")
 async def purge_project(item_id: str, payload: PurgeTrash | None = None):
     if not payload or not payload.confirm:
-        raise HTTPException(400, "請使用回收筒中的「永久刪除」操作。")
+        raise HTTPException(400, "Use the Delete permanently action in Trash.")
     # Keep the lock in the deletion thread even if the HTTP client disconnects.
     return await asyncio.to_thread(purge_trash_entry, item_id)
 
@@ -653,7 +653,7 @@ async def update_project(name: str, payload: ProjectUpdate):
     directory = existing_project(name)
     title = payload.title.strip()
     if not title:
-        raise HTTPException(400, "請填寫專案名稱。")
+        raise HTTPException(400, "Enter a project name.")
     metadata = read_json_file(directory / "portal.json")
     write_json_file(directory / "portal.json", {**metadata, "title": title})
     return {"name": name, "title": title, "updated": True}
@@ -680,9 +680,6 @@ async def dashboard_script():
                             "label: { show: d.nodes.length <= 40, position: 'bottom', color: '#6d639b' }, emphasis:", 1)
     source = source.replace("graphChart.resize();", """graphChart.resize();
     if (d.nodes.length === 1) showFact(d.nodes[0].id);""", 1)
-    source = source.replace("addSec('Statement'", "addSec('命題'")
-    source = source.replace("addSec('Proof'", "addSec('證明'")
-    source = source.replace("addSec('Intuition'", "addSec('直觀說明'")
     source += "\nwindow.addEventListener('resize', () => { if (graphChart) graphChart.resize(); });\n"
     return Response(source, media_type="application/javascript")
 
@@ -697,15 +694,12 @@ async def dashboard_index(name: str, embed: str = ""):
         f'<script>window.DANUS_DASHBOARD_BASE = {json.dumps("/dashboard/" + name)};</script>'
         '<script defer src="/dashboard/static/app.js"></script>')
     if embed == "graph":
-        source = source.replace("Click a node to inspect its statement, proof, and predecessors.",
-                                "點選節點，查看命題、證明與依賴的事實。")
-        source = source.replace(">axiom<", ">基礎命題<").replace(">deep result<", ">深層成果<")
         source = source.replace("</head>", """<style>
             .header{display:none!important}.main{padding:16px!important}
             .graph-wrap{height:calc(100vh - 32px)!important;min-height:460px}
             .graph-toolbar{flex-wrap:wrap;gap:10px!important}
             .graph-toolbar .muted:first-child{font-size:0}
-            .graph-toolbar .muted:first-child:after{content:"拖曳節點或縮放圖表，點選節點查看證明";font-size:12px}
+            .graph-toolbar .muted:first-child:after{content:"Drag nodes or zoom the graph. Select a node to view its proof.";font-size:12px}
             @media(max-width:700px){.graph-wrap{grid-template-columns:1fr!important;grid-template-rows:auto 300px minmax(250px,1fr)!important;height:auto!important}.fact-detail{border-left:0!important;border-top:1px solid #e6e9f0;max-height:400px}}
             </style></head>""")
         source = source.replace("</body>", """<script>
@@ -738,7 +732,7 @@ async def dashboard_channel(name: str, kind: str):
     try:
         return build_channel(kind, dashboard_project(name))
     except KeyError as exc:
-        raise HTTPException(404, "找不到記憶頻道") from exc
+        raise HTTPException(404, "Memory channel not found") from exc
 
 
 @app.get("/api/danus/projects/{name}/results")
@@ -747,7 +741,7 @@ async def project_results(name: str, limit: int = 50):
     name = project_name(name)
     directory = layout.project_dir(name)
     if not directory.is_dir():
-        raise HTTPException(404, "找不到專案")
+        raise HTTPException(404, "Project not found")
 
     from danus.core import GlobalMemory
     from danus.core.factgraph import statement_of
@@ -784,7 +778,7 @@ async def start_project(name: str):
     cli, _ = danus()
     result = run_danus(cli.do_start, project_name(name))
     if any(worker.get("result") == "locked" for worker in result):
-        raise HTTPException(409, "專案正在處理另一個操作，請稍後重試。")
+        raise HTTPException(409, "Another project operation is in progress. Please try again later.")
     return result
 
 
@@ -793,7 +787,7 @@ async def stop_project(name: str, payload: StopProject | None = None):
     existing_project(name)
     mode = payload.mode if payload else "immediate"
     if mode not in ("immediate", "after_round"):
-        raise HTTPException(400, "停止方式不正確。")
+        raise HTTPException(400, "Invalid stop mode.")
     cli, layout = danus()
     with project_locks(name):
         before = run_danus(cli.do_status, name)
@@ -810,7 +804,7 @@ async def stop_project(name: str, payload: StopProject | None = None):
             if remaining:
                 for worker in remaining:
                     (layout.worker_dir(name, worker["worker"]) / ".pid").write_text(str(worker["pid"]))
-                raise HTTPException(409, "程序尚未結束，請稍後再按「立即停止」。")
+                raise HTTPException(409, "The process has not exited yet. Select Stop now again shortly.")
             for worker in workers:
                 home = layout.worker_dir(name, worker["worker"])
                 details = read_json_file(home / ".status.json")
@@ -827,13 +821,13 @@ async def stop_project(name: str, payload: StopProject | None = None):
 async def export_project(name: str):
     info = await project(name)
     results = await project_results(name, limit=5000)
-    sections = [f"# {info['title']}", "## 問題", info["problem"],
-                f"## 通過 Danus 驗證的成果（{results['fact_count']}）",
-                "驗證由模型執行；以下內容仍可供人工核對。"]
+    sections = [f"# {info['title']}", "## Problem", info["problem"],
+                f"## Results accepted by Danus verification ({results['fact_count']})",
+                "Verification is performed by a model. Review the following results independently."]
     for fact in results["facts"]:
-        sections.extend([f"### {fact['statement']}", f"事實 ID：{fact['fact_id']}", fact["proof"]])
+        sections.extend([f"### {fact['statement']}", f"Fact ID: {fact['fact_id']}", fact["proof"]])
     if not results["facts"]:
-        sections.append("目前尚無通過驗證的成果。")
+        sections.append("No verified results yet.")
     return Response("\n\n".join(sections), media_type="text/markdown; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{name}.md"'})
 
@@ -844,7 +838,7 @@ async def assign_project(name: str, payload: Assignment):
     name = project_name(name)
     workers = layout.list_workers(name)
     if len(workers) != 1 or not payload.task.strip():
-        raise HTTPException(400, "請提供單一 worker 的任務。")
+        raise HTTPException(400, "Provide an assignment for a project with exactly one worker.")
     return run_danus(cli.do_assign, f"{name}/{workers[0]}", payload.task.strip())
 
 

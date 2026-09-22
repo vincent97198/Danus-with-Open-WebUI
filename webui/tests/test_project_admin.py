@@ -169,11 +169,11 @@ class ProjectControlTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_rename_during_execution_keeps_problem_and_task(self):
         proc = self.start_disposable_worker()
-        await server.update_project('old_project', server.ProjectUpdate(title='中文專案'))
+        await server.update_project('old_project', server.ProjectUpdate(title='\u4e2d\u6587\u5c08\u6848'))
         self.assertIsNone(proc.poll())
         self.assertEqual((self.project / 'PROBLEM.md').read_text(), 'original problem')
         self.assertEqual((self.worker / 'TASK.md').read_text(), 'original task')
-        self.assertEqual((await server.project('old_project'))['title'], '中文專案')
+        self.assertEqual((await server.project('old_project'))['title'], '\u4e2d\u6587\u5c08\u6848')
 
     async def test_paths_and_project_symlinks_are_rejected(self):
         outside = Path(self.temp.name) / 'outside'

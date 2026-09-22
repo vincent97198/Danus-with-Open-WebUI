@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f8fb">
-  <title>Danus · 本地研究工作區</title>
+  <title>Danus · Local Research Workspace</title>
   <link rel="stylesheet" href="/portal.css">
   <link rel="stylesheet" href="/static/katex/katex.min.css">
   <script defer src="/static/marked.min.js"></script>
@@ -13,132 +13,132 @@
   <script defer src="/portal.js"></script>
 </head>
 <body>
-  <button id="sidebar-backdrop" aria-label="關閉專案選單" hidden></button>
+  <button id="sidebar-backdrop" aria-label="Close project menu" hidden></button>
   <aside id="sidebar">
-    <a class="brand" href="#projects" aria-label="Danus 研究工作區"><span class="brand-mark">∂</span><span>Danus<small>本地研究工作區</small></span></a>
-    <nav class="main-nav" aria-label="主要功能">
-      <button data-mode="chat"><span aria-hidden="true">◌</span>聊天<span class="nav-note">Open WebUI</span></button>
-      <button data-mode="projects" class="active"><span aria-hidden="true">▧</span>數學專案<span id="project-count" class="count">0</span></button>
+    <a class="brand" href="#projects" aria-label="Danus Research Workspace"><span class="brand-mark">∂</span><span>Danus<small>Local Research Workspace</small></span></a>
+    <nav class="main-nav" aria-label="Main navigation">
+      <button data-mode="chat"><span aria-hidden="true">◌</span>Chat<span class="nav-note">Open WebUI</span></button>
+      <button data-mode="projects" class="active"><span aria-hidden="true">▧</span>Math Projects<span id="project-count" class="count">0</span></button>
     </nav>
-    <div class="sidebar-section"><span>我的專案</span><button class="icon-button" id="new-project-small" title="建立專案" aria-label="建立專案">＋</button></div>
-    <label class="search-box"><span aria-hidden="true">⌕</span><input id="project-search" placeholder="搜尋專案…" aria-label="搜尋專案" autocomplete="off"></label>
-    <div id="project-list" aria-label="專案清單"><p class="sidebar-empty">正在讀取專案…</p></div>
+    <div class="sidebar-section"><span>My projects</span><button class="icon-button" id="new-project-small" title="New project" aria-label="New project">＋</button></div>
+    <label class="search-box"><span aria-hidden="true">⌕</span><input id="project-search" placeholder="Search projects…" aria-label="Search projects" autocomplete="off"></label>
+    <div id="project-list" aria-label="Project list"><p class="sidebar-empty">Loading projects…</p></div>
     <div class="sidebar-bottom">
-      <button id="open-trash"><span aria-hidden="true">▱</span>回收筒<span id="trash-count" class="count" hidden></span></button>
-      <button id="open-search-settings"><span aria-hidden="true">⌕</span>搜尋設定</button>
-      <button id="open-help"><span aria-hidden="true">?</span>使用說明</button>
-      <div class="model-status"><span id="model-dot" class="status-dot"></span><div><strong id="model-status">正在連線</strong><small>本機執行 · 資料保存在 Docker</small></div></div>
+      <button id="open-trash"><span aria-hidden="true">▱</span>Trash<span id="trash-count" class="count" hidden></span></button>
+      <button id="open-search-settings"><span aria-hidden="true">⌕</span>Search settings</button>
+      <button id="open-help"><span aria-hidden="true">?</span>Help</button>
+      <div class="model-status"><span id="model-dot" class="status-dot"></span><div><strong id="model-status">Connecting</strong><small>Runs locally · Data stored in Docker</small></div></div>
     </div>
   </aside>
 
   <div id="app-main">
     <header class="topbar">
-      <button id="toggle-sidebar" class="icon-button" aria-label="收合專案選單" title="收合專案選單">☰</button>
-      <div class="breadcrumb"><span>工作區</span><span class="crumb-divider">/</span><strong id="page-label">數學專案</strong></div>
-      <div class="topbar-end"><span id="sync-status">自動更新</span><button id="refresh" class="icon-button" title="重新整理" aria-label="重新整理">↻</button></div>
+      <button id="toggle-sidebar" class="icon-button" aria-label="Toggle project menu" title="Toggle project menu">☰</button>
+      <div class="breadcrumb"><span>Workspace</span><span class="crumb-divider">/</span><strong id="page-label">Math Projects</strong></div>
+      <div class="topbar-end"><span id="sync-status">Auto refresh</span><button id="refresh" class="icon-button" title="Refresh" aria-label="Refresh">↻</button></div>
     </header>
 
     <main id="math-view">
       <div id="connection-error" class="notice error" hidden role="alert"></div>
       <section id="empty-state" class="empty-state" hidden>
-        <div class="empty-symbol">∑</div><span class="eyebrow">從一個問題開始</span>
-        <h1>你的下一個數學問題是什麼？</h1>
-        <p>建立專案，讓本地模型探索證明。<br>進度、驗證結果與事實圖都集中在這裡。</p>
-        <button class="button primary" id="new-project-empty">＋ 建立第一個專案</button>
+        <div class="empty-symbol">∑</div><span class="eyebrow">Start with a question</span>
+        <h1>What would you like to explore?</h1>
+        <p>Create a project and let your local model explore a proof.<br>Track progress, verified results, and fact dependencies in one place.</p>
+        <button class="button primary" id="new-project-empty">＋ Create your first project</button>
       </section>
       <section id="project-workspace" hidden>
         <div class="project-heading">
-          <div class="heading-copy"><div class="eyebrow">數學專案 <span id="project-id"></span></div><h1 id="project-title"></h1><p id="project-description"></p></div>
+          <div class="heading-copy"><div class="eyebrow">Math Projects <span id="project-id"></span></div><h1 id="project-title"></h1><p id="project-description"></p></div>
           <div class="project-actions">
-            <button id="primary-action" class="button primary">開始推理</button>
-            <button id="project-search-settings" class="button" title="設定這個專案可用的搜尋來源">搜尋設定</button>
-            <details id="project-menu" class="menu"><summary class="icon-button" aria-label="更多專案操作" title="更多操作">⋯</summary>
+            <button id="primary-action" class="button primary">Start reasoning</button>
+            <button id="project-search-settings" class="button" title="Choose search sources for this project">Search settings</button>
+            <details id="project-menu" class="menu"><summary class="icon-button" aria-label="More project actions" title="More actions">⋯</summary>
               <div class="menu-items">
-                <button id="graceful-stop">本輪結束後停止</button>
-                <button id="rename-project">重新命名</button>
-                <button id="duplicate-project">複製成新專案</button>
-                <button id="download-results">下載成果</button>
-                <hr><button id="delete-project" class="danger-text">移到回收筒</button>
+                <button id="graceful-stop">Stop after this round</button>
+                <button id="rename-project">Rename</button>
+                <button id="duplicate-project">Duplicate project</button>
+                <button id="download-results">Download results</button>
+                <hr><button id="delete-project" class="danger-text">Move to trash</button>
               </div>
             </details>
           </div>
         </div>
         <div id="project-stats" class="stats-row"></div>
-        <div class="project-tabs" role="tablist" aria-label="專案內容">
-          <button role="tab" data-tab="progress" aria-selected="true">進度</button>
-          <button role="tab" data-tab="results" aria-selected="false">成果 <span id="results-count" class="count">0</span></button>
-          <button role="tab" data-tab="literature" aria-selected="false">文獻 <span id="literature-count" class="count">0</span></button>
-          <button role="tab" data-tab="graph" aria-selected="false">事實圖</button>
-          <button role="tab" data-tab="problem" aria-selected="false">問題</button>
+        <div class="project-tabs" role="tablist" aria-label="Project content">
+          <button role="tab" data-tab="progress" aria-selected="true">Progress</button>
+          <button role="tab" data-tab="results" aria-selected="false">Results <span id="results-count" class="count">0</span></button>
+          <button role="tab" data-tab="literature" aria-selected="false">Literature <span id="literature-count" class="count">0</span></button>
+          <button role="tab" data-tab="graph" aria-selected="false">Fact graph</button>
+          <button role="tab" data-tab="problem" aria-selected="false">Problem</button>
         </div>
-        <section id="panel-progress" class="tab-panel" role="tabpanel" aria-label="進度">
+        <section id="panel-progress" class="tab-panel" role="tabpanel" aria-label="Progress">
           <div id="progress-summary"></div>
-          <div class="section-heading"><div><h2>最近活動</h2><p>顯示模型已寫入的工作記錄，尚未經過驗證。</p></div><span class="live-note"><span class="status-dot green"></span>每 5 秒更新</span></div>
+          <div class="section-heading"><div><h2>Recent activity</h2><p>Recent model notes appear here. They have not been verified.</p></div><span class="live-note"><span class="status-dot green"></span>Updates every 5 seconds</span></div>
           <div id="activity-list" class="activity-list"></div>
-          <details id="raw-log-section" class="raw-log-section"><summary>查看詳細工作記錄<span>最近一輪</span></summary><div class="log-toolbar"><span id="log-time"></span><button id="copy-log" class="text-button">複製記錄</button></div><pre id="raw-log"></pre></details>
+          <details id="raw-log-section" class="raw-log-section"><summary>View detailed logs<span>Latest round</span></summary><div class="log-toolbar"><span id="log-time"></span><button id="copy-log" class="text-button">Copy log</button></div><pre id="raw-log"></pre></details>
         </section>
-        <section id="panel-results" class="tab-panel" role="tabpanel" aria-label="成果" hidden></section>
-        <section id="panel-literature" class="tab-panel" role="tabpanel" aria-label="文獻" hidden></section>
-        <section id="panel-graph" class="tab-panel graph-panel" role="tabpanel" aria-label="事實圖" hidden><div id="graph-empty" class="inline-empty"></div><iframe id="graph-frame" title="Danus 事實圖" hidden></iframe></section>
-        <section id="panel-problem" class="tab-panel" role="tabpanel" aria-label="問題" hidden></section>
+        <section id="panel-results" class="tab-panel" role="tabpanel" aria-label="Results" hidden></section>
+        <section id="panel-literature" class="tab-panel" role="tabpanel" aria-label="Literature" hidden></section>
+        <section id="panel-graph" class="tab-panel graph-panel" role="tabpanel" aria-label="Fact graph" hidden><div id="graph-empty" class="inline-empty"></div><iframe id="graph-frame" title="Danus Fact graph" hidden></iframe></section>
+        <section id="panel-problem" class="tab-panel" role="tabpanel" aria-label="Problem" hidden></section>
       </section>
     </main>
 
     <main id="chat-view" hidden>
-      <div class="chat-tip"><span>聊天・論文・PDF</span><p>按 ＋ 上傳 PDF；搜尋開啟時可要求查論文並附來源。</p><button id="chat-search-toggle" class="button" aria-pressed="true" disabled>搜尋設定讀取中</button><a href="http://127.0.0.1:3000/" target="_blank" rel="noopener">獨立視窗 ↗</a></div>
-      <iframe id="chat-frame" title="Open WebUI 本地模型聊天" src="about:blank"></iframe>
+      <div class="chat-tip"><span>Chat · Papers · PDFs</span><p>Use ＋ to upload a PDF. Enable search to find papers and request sources.</p><button id="chat-search-toggle" class="button" aria-pressed="true" disabled>Loading search settings</button><a href="http://127.0.0.1:3000/" target="_blank" rel="noopener">Open separately ↗</a></div>
+      <iframe id="chat-frame" title="Open WebUI local model chat" src="about:blank"></iframe>
     </main>
-    <main id="trash-view" hidden><div class="page-heading"><span class="eyebrow">專案管理</span><h1>回收筒</h1><p>可以還原專案，或直接永久刪除以釋放空間。永久刪除後無法還原。</p></div><div id="trash-list"></div></main>
+    <main id="trash-view" hidden><div class="page-heading"><span class="eyebrow">Project management</span><h1>Trash</h1><p>Restore a project or permanently delete it to free up space. Permanent deletion cannot be undone.</p></div><div id="trash-list"></div></main>
     <main id="settings-view" hidden>
-      <div class="page-heading"><span class="eyebrow">外部資料</span><h1>搜尋設定</h1><p>聊天與 Danus 分別控制。所有來源皆免金鑰、無按次 API 費用。</p></div>
-      <div class="notice">關閉後，搜尋與論文閱讀工具會停用；已有的成果、文獻紀錄與上傳檔案會保留。進行中的請求可能仍會完成。</div>
-      <div class="search-settings-grid"><section id="settings-chat"><p>正在讀取設定…</p></section><section id="settings-danus"></section></div>
-      <p class="result-footnote">Bing、Brave、Google 與 DuckDuckGo 網頁搜尋經由 SearXNG 整合公開搜尋頁，可能遇到限流或驗證。Wikipedia 與 DuckDuckGo 即時答案使用免費 API。API 免費不代表無限流量。</p>
-      <p class="result-footnote">Danus 的開關控制整合的搜尋工具；一般工作程序仍有 Docker 的網路能力，這不是容器斷網模式。</p>
+      <div class="page-heading"><span class="eyebrow">External sources</span><h1>Search settings</h1><p>Manage search separately for chat and Danus. The included sources require no API keys or per-query API fees.</p></div>
+      <div class="notice">Turning search off disables search and paper-reading tools. Saved results, source history, and uploaded files remain available. Requests already in progress may finish.</div>
+      <div class="search-settings-grid"><section id="settings-chat"><p>Loading settings…</p></section><section id="settings-danus"></section></div>
+      <p class="result-footnote">Bing, Brave, Google, and DuckDuckGo web results are retrieved through SearXNG and may encounter rate limits or CAPTCHAs. Wikipedia and DuckDuckGo Instant Answers use free APIs with usage limits.</p>
+      <p class="result-footnote">Danus search settings apply to the integrated tools. Worker containers retain network access.</p>
     </main>
   </div>
 
   <dialog id="project-dialog">
     <form id="project-form">
-      <div class="dialog-heading"><div><span class="eyebrow">新的研究</span><h2>建立數學專案</h2></div><button type="button" class="icon-button" data-close-dialog aria-label="關閉">×</button></div>
-      <label for="new-title">專案名稱<span>可以使用中文</span></label><input id="new-title" maxlength="100" placeholder="例如：證明 1 + 1 = 2" autocomplete="off" required>
-      <label for="new-problem">想解決的數學問題</label><textarea id="new-problem" rows="8" maxlength="20000" placeholder="寫下命題、已知條件，以及你期待得到的結果…" required></textarea>
-      <label for="new-search-mode">網路搜尋與論文工具</label><select id="new-search-mode"><option value="inherit">跟隨 Danus 預設</option><option value="on">開啟</option><option value="off">關閉，只使用現有資料</option></select>
-      <p class="form-hint">Danus 可自行搜尋論文、讀取 arXiv 原文。查閱紀錄會顯示在「文獻」。請寫清楚假設與目標。</p>
+      <div class="dialog-heading"><div><span class="eyebrow">New research</span><h2>Create a math project</h2></div><button type="button" class="icon-button" data-close-dialog aria-label="Close">×</button></div>
+      <label for="new-title">Project name<span>Any language</span></label><input id="new-title" maxlength="100" placeholder="For example: Prove 1 + 1 = 2" autocomplete="off" required>
+      <label for="new-problem">Your mathematical problem</label><textarea id="new-problem" rows="8" maxlength="20000" placeholder="Describe the statement, assumptions, and desired result…" required></textarea>
+      <label for="new-search-mode">Web search and paper tools</label><select id="new-search-mode"><option value="inherit">Use Danus defaults</option><option value="on">On</option><option value="off">Off — use existing information</option></select>
+      <p class="form-hint">Danus can search papers and read arXiv text. Retrieved sources appear in Literature. State your assumptions and goals clearly.</p>
       <p id="project-form-error" class="form-error" role="alert" hidden></p>
-      <div class="dialog-actions"><button type="submit" class="button" value="save">只建立</button><button type="submit" class="button primary" value="start">建立並開始</button></div>
+      <div class="dialog-actions"><button type="submit" class="button" value="save">Create only</button><button type="submit" class="button primary" value="start">Create and start</button></div>
     </form>
   </dialog>
 
   <dialog id="rename-dialog"><form id="rename-form">
-    <div class="dialog-heading"><h2>重新命名</h2><button type="button" class="icon-button" data-close-dialog aria-label="關閉">×</button></div>
-    <label for="rename-title">專案名稱</label><input id="rename-title" maxlength="100" required>
+    <div class="dialog-heading"><h2>Rename</h2><button type="button" class="icon-button" data-close-dialog aria-label="Close">×</button></div>
+    <label for="rename-title">Project name</label><input id="rename-title" maxlength="100" required>
     <p id="rename-error" class="form-error" hidden role="alert"></p>
-    <div class="dialog-actions"><button type="button" class="button" data-close-dialog>取消</button><button class="button primary" type="submit">儲存</button></div>
+    <div class="dialog-actions"><button type="button" class="button" data-close-dialog>Cancel</button><button class="button primary" type="submit">Save</button></div>
   </form></dialog>
 
   <dialog id="project-search-dialog"><form id="project-search-form">
-    <div class="dialog-heading"><div><span class="eyebrow">這個專案的設定</span><h2 id="project-search-title">搜尋來源</h2></div><button type="button" class="icon-button" data-close-dialog aria-label="關閉">×</button></div>
-    <label class="search-switch"><input type="checkbox" id="project-search-inherit"><span>跟隨 Danus 預設</span></label>
+    <div class="dialog-heading"><div><span class="eyebrow">Project preferences</span><h2 id="project-search-title">Search sources</h2></div><button type="button" class="icon-button" data-close-dialog aria-label="Close">×</button></div>
+    <label class="search-switch"><input type="checkbox" id="project-search-inherit"><span>Use Danus defaults</span></label>
     <div id="project-search-controls"></div>
-    <p class="form-hint">主代理、worker 與驗證程序都會沿用這個設定。下一次工具呼叫會套用，已送出的請求可能繼續完成。</p>
+    <p class="form-hint">The main agent, workers, and verification processes use these preferences. Changes apply to the next tool call; requests already in progress may finish.</p>
     <p id="project-search-error" class="form-error" hidden role="alert"></p>
-    <div class="dialog-actions"><button type="button" class="button" data-close-dialog>取消</button><button type="submit" class="button primary">儲存設定</button></div>
+    <div class="dialog-actions"><button type="button" class="button" data-close-dialog>Cancel</button><button type="submit" class="button primary">Save settings</button></div>
   </form></dialog>
 
   <dialog id="delete-dialog">
-    <div class="dialog-heading"><h2>移到回收筒？</h2><button class="icon-button" data-close-dialog aria-label="關閉">×</button></div>
-    <p id="delete-description"></p><p class="muted">成果與工作記錄會保留，可以從回收筒還原。</p>
+    <div class="dialog-heading"><h2>Move to trash?</h2><button class="icon-button" data-close-dialog aria-label="Close">×</button></div>
+    <p id="delete-description"></p><p class="muted">Results and logs are kept. You can restore the project from Trash.</p>
     <p id="delete-error" class="form-error" hidden role="alert"></p>
-    <div class="dialog-actions"><button class="button" data-close-dialog>取消</button><button class="button danger" id="confirm-delete">移到回收筒</button></div>
+    <div class="dialog-actions"><button class="button" data-close-dialog>Cancel</button><button class="button danger" id="confirm-delete">Move to trash</button></div>
   </dialog>
 
   <dialog id="help-dialog">
-    <div class="dialog-heading"><h2>使用工作區</h2><button class="icon-button" data-close-dialog aria-label="關閉">×</button></div>
-    <div class="help-steps"><article><span>1</span><div><h3>聊天或讀 PDF</h3><p>在「聊天」使用本地模型，上傳附件後即可提問。</p></div></article><article><span>2</span><div><h3>交給 Danus 研究</h3><p>建立數學專案並開始推理。在「進度」查看活動，在「成果」閱讀已驗證的內容。</p></div></article><article><span>3</span><div><h3>掌握執行與資料</h3><p>「立即停止」會中止目前這一輪；已保存的成果仍保留。刪除會移到回收筒，可隨時還原。</p></div></article></div>
-    <div class="notice">重開機後，先開 Docker Desktop，再開這個網頁。需要繼續研究的專案，再按「繼續推理」。</div>
-    <p class="muted small">聊天和 Danus 共用同一本地模型，同時使用可能需要等待。Danus 驗證由模型執行，重要結論仍請核對。</p>
+    <div class="dialog-heading"><h2>Using the workspace</h2><button class="icon-button" data-close-dialog aria-label="Close">×</button></div>
+    <div class="help-steps"><article><span>1</span><div><h3>Chat or read PDFs</h3><p>Open Chat to use your local model. Attach a document and ask a question.</p></div></article><article><span>2</span><div><h3>Research with Danus</h3><p>Create a math project and start reasoning. Follow activity in Progress and read verified content in Results.</p></div></article><article><span>3</span><div><h3>Manage projects and data</h3><p>Stop now ends the current round and keeps saved results. Moving a project to Trash lets you restore it later.</p></div></article></div>
+    <div class="notice">After rebooting, start Docker Desktop and your model, then open this page. Use Continue reasoning to resume a project.</div>
+    <p class="muted small">Chat and Danus share your local model, so concurrent requests may need to wait. Danus verification is performed by a model; review important conclusions.</p>
   </dialog>
-  <div id="toast" role="status" aria-live="polite" hidden><span id="toast-text"></span><button id="toast-action" hidden></button><button id="toast-close" aria-label="關閉提示">×</button></div>
+  <div id="toast" role="status" aria-live="polite" hidden><span id="toast-text"></span><button id="toast-action" hidden></button><button id="toast-close" aria-label="Dismiss notification">×</button></div>
 </body>
 </html>

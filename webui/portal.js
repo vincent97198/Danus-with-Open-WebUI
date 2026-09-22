@@ -12,14 +12,14 @@
   const selected = () => state.projects.find((p) => p.project === state.name);
   const isRunning = () => state.progress?.workers?.some((w) => w.alive) ?? Boolean(selected()?.live);
   const date = (value) => {
-    if (!value) return '尚無記錄';
+    if (!value) return 'No records yet';
     const d = new Date(typeof value === 'number' ? value * 1000 : value);
-    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
   const duration = (seconds) => {
     if (!Number.isFinite(seconds)) return '—';
     const minutes = Math.floor(seconds / 60);
-    return minutes >= 60 ? Math.floor(minutes / 60) + ' 小時 ' + minutes % 60 + ' 分' : minutes > 0 ? minutes + ' 分 ' + Math.floor(seconds % 60) + ' 秒' : Math.floor(seconds) + ' 秒';
+    return minutes >= 60 ? Math.floor(minutes / 60) + 'h ' + minutes % 60 + 'm' : minutes > 0 ? minutes + 'm ' + Math.floor(seconds % 60) + 's' : Math.floor(seconds) + 's';
   };
   async function api(path, options = {}) {
     const controller = new AbortController();
@@ -27,11 +27,11 @@
     try {
       const response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers }, signal: controller.signal });
       const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : '暫時無法完成操作，請稍後重試。');
+      if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : 'Unable to complete this action. Please try again later.');
       return data;
     } catch (error) {
-      if (error.name === 'AbortError') throw new Error('連線逾時，請重新整理確認狀態。');
-      if (error instanceof TypeError) throw new Error('連不上工作區，請確認 Docker Desktop 正在執行。');
+      if (error.name === 'AbortError') throw new Error('Connection timed out. Refresh to check the current status.');
+      if (error instanceof TypeError) throw new Error('Cannot connect to the workspace. Check that Docker Desktop is running.');
       throw error;
     } finally { clearTimeout(timeout); }
   }
@@ -68,11 +68,11 @@
     return doc.body.innerHTML.replace(/DANUSMATHPLACEHOLDER(\d+)END/g, (_, i) => escape(math[Number(i)] ?? ''));
   }
   function projectStatus(project, workers = project?.workers_detail || []) {
-    if (workers.some((w) => w.alive && w.stop_requested)) return { label: '等待本輪結束', color: 'amber' };
-    if (workers.some((w) => w.alive) || project?.live) return { label: '推理中', color: 'green' };
-    if (workers.some((w) => w.state === 'error')) return { label: '執行遇到問題', color: 'red' };
-    if (workers.some((w) => w.round > 0)) return { label: '已停止', color: '' };
-    return { label: '尚未開始', color: '' };
+    if (workers.some((w) => w.alive && w.stop_requested)) return { label: 'Finishing round', color: 'amber' };
+    if (workers.some((w) => w.alive) || project?.live) return { label: 'Reasoning', color: 'green' };
+    if (workers.some((w) => w.state === 'error')) return { label: 'Run failed', color: 'red' };
+    if (workers.some((w) => w.round > 0)) return { label: 'Stopped', color: '' };
+    return { label: 'Not started', color: '' };
   }
   function renderProjects() {
     const query = $('project-search').value.trim().toLowerCase();
@@ -80,8 +80,8 @@
     $('project-count').textContent = state.projects.length;
     setHTML('project-list', rows.length ? rows.map((p) => {
       const status = projectStatus(p);
-      return '<button class="project-item ' + (p.project === state.name && state.mode === 'projects' ? 'selected' : '') + '" data-project="' + escape(p.project) + '" aria-current="' + (p.project === state.name && state.mode === 'projects' ? 'page' : 'false') + '" title="' + escape(p.title) + '"><strong>' + escape(p.title) + '</strong><small><span class="status-dot ' + status.color + '"></span>' + status.label + '<em>' + (p.fact_count || 0) + ' 項成果</em></small></button>';
-    }).join('') : '<p class="sidebar-empty">' + (query ? '找不到符合的專案' : '還沒有專案，按上方 ＋ 開始。') + '</p>');
+      return '<button class="project-item ' + (p.project === state.name && state.mode === 'projects' ? 'selected' : '') + '" data-project="' + escape(p.project) + '" aria-current="' + (p.project === state.name && state.mode === 'projects' ? 'page' : 'false') + '" title="' + escape(p.title) + '"><strong>' + escape(p.title) + '</strong><small><span class="status-dot ' + status.color + '"></span>' + status.label + '<em>' + (p.fact_count || 0) + ' results</em></small></button>';
+    }).join('') : '<p class="sidebar-empty">' + (query ? 'No matching projects' : 'No projects yet. Use ＋ above to start.') + '</p>');
   }
   function route(mode, name = state.name, tab = state.tab) {
     const query = new URLSearchParams();
@@ -103,12 +103,12 @@
     if (name) storage.set('project', name);
     if (changed) {
       state.serial++; state.info = state.progress = state.results = state.literature = null;
-      ['progress-summary', 'activity-list', 'panel-results', 'panel-literature', 'panel-problem'].forEach((id) => setHTML(id, '<div class="inline-empty">正在讀取…</div>'));
+      ['progress-summary', 'activity-list', 'panel-results', 'panel-literature', 'panel-problem'].forEach((id) => setHTML(id, '<div class="inline-empty">Loading…</div>'));
       $('graph-frame').src = 'about:blank'; $('graph-frame').hidden = true;
     }
     $('math-view').hidden = mode !== 'projects'; $('chat-view').hidden = mode !== 'chat'; $('trash-view').hidden = mode !== 'trash';
     $('settings-view').hidden = mode !== 'settings';
-    $('page-label').textContent = { chat: '聊天', projects: '數學專案', trash: '回收筒', settings: '搜尋設定' }[mode];
+    $('page-label').textContent = { chat: 'Chat', projects: 'Math Projects', trash: 'Trash', settings: 'Search settings' }[mode];
     document.querySelectorAll('[data-mode]').forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
     $('open-trash').classList.toggle('active', mode === 'trash');
     $('open-search-settings').classList.toggle('active', mode === 'settings');
@@ -127,7 +127,7 @@
     if (state.tab === 'graph' && state.mode === 'projects') {
       const hasFacts = Boolean(state.results?.fact_count);
       $('graph-frame').hidden = !hasFacts; $('graph-empty').hidden = hasFacts;
-      setHTML('graph-empty', '<h2>事實圖還在等待第一個成果</h2><p>通過驗證的命題會顯示為節點，並連結彼此的依賴關係。</p>');
+      setHTML('graph-empty', '<h2>Waiting for the first result</h2><p>Verified statements appear as nodes linked by their dependencies.</p>');
       if (hasFacts) {
         const src = '/dashboard/' + encodeURIComponent(state.name) + '/?embed=graph';
         if ($('graph-frame').getAttribute('src') !== src) $('graph-frame').src = src;
@@ -140,9 +140,9 @@
     if (!p) return;
     $('project-title').textContent = state.info?.title || p.title;
     $('project-id').textContent = p.project;
-    $('project-description').textContent = state.info?.problem?.trim() || '正在讀取問題…';
+    $('project-description').textContent = state.info?.problem?.trim() || 'Loading problem…';
     const search = state.info?.search;
-    $('project-search-settings').textContent = search ? '搜尋：' + (search.enabled ? '開啟' : '關閉') : '搜尋設定';
+    $('project-search-settings').textContent = search ? 'Search: ' + (search.enabled ? 'On' : 'Off') : 'Search settings';
     $('project-search-settings').classList.toggle('search-off', search?.enabled === false);
     const workers = state.progress?.workers || p.workers_detail || [];
     const status = projectStatus(p, workers);
@@ -151,17 +151,17 @@
     const latestLog = workers.map((w) => w.last_log_at).filter(Boolean).sort().at(-1);
     const facts = state.results?.fact_count ?? p.fact_count ?? 0;
     $('results-count').textContent = facts;
-    $('primary-action').textContent = state.busy ? '正在處理…' : running ? '■ 立即停止' : round > 0 ? '▶ 繼續推理' : '▶ 開始推理';
+    $('primary-action').textContent = state.busy ? 'Working…' : running ? '■ Stop now' : round > 0 ? '▶ Continue reasoning' : '▶ Start reasoning';
     $('primary-action').className = 'button ' + (running ? 'stop' : 'primary');
     $('primary-action').disabled = state.busy;
     $('graceful-stop').hidden = !running;
     $('graceful-stop').disabled = state.busy || workers.some((w) => w.stop_requested);
     const elapsed = Math.max(0, ...workers.map((w) => w.elapsed_s || 0));
     setHTML('project-stats',
-      '<div class="stat"><small>執行狀態</small><strong><span class="status-dot ' + status.color + '"></span>' + status.label + '</strong></div>' +
-      '<div class="stat"><small>已驗證成果</small><strong>' + facts + '<span class="unit">項命題</span></strong></div>' +
-      '<div class="stat"><small>' + (running ? '目前輪次' : '上次輪次') + '</small><strong>' + (round || '—') + '<span class="unit">' + (running ? '· ' + duration(elapsed) : '輪') + '</span></strong></div>' +
-      '<div class="stat"><small>最近工作記錄</small><strong style="font-size:13px">' + date(latestLog) + '</strong></div>');
+      '<div class="stat"><small>Status</small><strong><span class="status-dot ' + status.color + '"></span>' + status.label + '</strong></div>' +
+      '<div class="stat"><small>Verified results</small><strong>' + facts + '<span class="unit">statements</span></strong></div>' +
+      '<div class="stat"><small>' + (running ? 'Current round' : 'Last round') + '</small><strong>' + (round || '—') + '<span class="unit">' + (running ? '· ' + duration(elapsed) : 'round') + '</span></strong></div>' +
+      '<div class="stat"><small>Latest log</small><strong style="font-size:13px">' + date(latestLog) + '</strong></div>');
     renderTabs();
   }
   function renderProgress() {
@@ -171,38 +171,38 @@
     const stopping = workers.some((w) => w.alive && w.stop_requested);
     const failure = workers.some((w) => !w.alive && w.state === 'error');
     const facts = state.results?.fact_count || 0;
-    let message = running ? 'Danus 正在探索與驗證。中間記錄會持續更新；你可以隨時立即停止。'
-      : facts ? '專案已停止，已保存 ' + facts + ' 項成果。可以切到「成果」閱讀證明，或繼續推理。'
-      : workers.some((w) => w.round > 0) ? '專案已停止，目前尚無通過驗證的成果。可以先檢查工作記錄，再繼續推理。' : '問題已準備好，按右上方「開始推理」即可交給 Danus。';
-    if (stopping) message = '已設定本輪結束後停止。這可能需要較久；要現在結束，請按「立即停止」。';
-    if (failure) message = '上次執行遇到問題。請查看下方記錄；確認模型連線正常後，可以繼續推理。';
+    let message = running ? 'Danus is exploring and verifying. Progress updates appear here. You can stop at any time.'
+      : facts ? 'Project stopped with ' + facts + ' saved results. Open Results to read the proofs, or continue reasoning.'
+      : workers.some((w) => w.round > 0) ? 'Project stopped with no verified results yet. Review the logs before continuing.' : 'Your problem is ready. Select Start reasoning to begin.';
+    if (stopping) message = 'Danus will stop after this round. This may take a while. Select Stop now to end it immediately.';
+    if (failure) message = 'The last run failed. Review the logs below and check the model connection before continuing.';
     setHTML('progress-summary', '<div class="notice ' + (failure ? 'error' : running ? '' : 'neutral') + '">' + message + '</div>');
     const events = state.progress.recent_events || [];
-    setHTML('activity-list', events.length ? events.slice(0, 10).map((event) => '<article class="activity ' + (event.kind === '錯誤' ? 'error' : '') + '"><span class="activity-icon">' + (event.kind === '錯誤' ? '!' : '↳') + '</span><div class="activity-body"><div class="activity-meta"><span>' + escape(event.kind) + ' · 第 ' + escape(event.round) + ' 輪</span><span>' + (event.time ? date(event.time) : escape(event.worker)) + '</span></div><p>' + escape(event.text) + '</p></div></article>').join('') : '<div class="inline-empty"><h2>' + (running ? '正在準備這一輪' : '尚無工作記錄') + '</h2><p>' + (running ? '模型寫入第一則記錄後，會自動顯示在這裡。' : '開始推理後，這裡會顯示最近活動。') + '</p></div>');
-    const logs = workers.map((w) => (workers.length > 1 ? '── ' + w.worker + ' ──\n' : '') + (w.log_tail || '尚無記錄')).join('\n\n');
+    setHTML('activity-list', events.length ? events.slice(0, 10).map((event) => '<article class="activity ' + (event.kind === 'Error' ? 'error' : '') + '"><span class="activity-icon">' + (event.kind === 'Error' ? '!' : '↳') + '</span><div class="activity-body"><div class="activity-meta"><span>' + escape(event.kind) + ' · Round ' + escape(event.round) + '</span><span>' + (event.time ? date(event.time) : escape(event.worker)) + '</span></div><p>' + escape(event.text) + '</p></div></article>').join('') : '<div class="inline-empty"><h2>' + (running ? 'Preparing this round' : 'No activity yet') + '</h2><p>' + (running ? 'The first model update will appear here automatically.' : 'Start reasoning to see recent activity here.') + '</p></div>');
+    const logs = workers.map((w) => (workers.length > 1 ? '── ' + w.worker + ' ──\n' : '') + (w.log_tail || 'No records yet')).join('\n\n');
     if ($('raw-log').textContent !== logs) $('raw-log').textContent = logs;
-    $('log-time').textContent = '最後寫入：' + date(workers.map((w) => w.last_log_at).filter(Boolean).sort().at(-1));
+    $('log-time').textContent = 'Last updated: ' + date(workers.map((w) => w.last_log_at).filter(Boolean).sort().at(-1));
   }
   function renderResults() {
     if (!state.results) return;
     const data = state.results;
-    let html = '<div class="section-heading"><div><h2>已驗證成果</h2><p>閱讀命題與完整證明，公式會直接顯示。</p></div><button class="button" data-action="download">↓ 下載成果</button></div>';
-    if (!data.facts.length) html += '<div class="inline-empty"><h2>尚無通過驗證的成果</h2><p>' + (isRunning() ? 'Danus 還在研究中。可以到「進度」查看目前活動。' : '開始推理後，通過 Danus 驗證的命題會保存在這裡。') + '</p><button class="button" data-action="progress">查看進度</button></div>';
-    html += data.facts.map((fact, i) => '<article class="result-card"><div class="result-card-heading"><div class="result-label"><span>✓</span>通過 Danus 驗證 · 成果 ' + (i + 1) + '</div><span class="fact-id">' + escape(fact.fact_id) + '</span></div><div class="prose">' + markdown(fact.statement) + '</div><h3 class="proof-label">證明</h3><div class="prose">' + markdown(fact.proof || '此事實未附獨立證明文字。') + '</div></article>').join('');
-    if (data.fact_count > data.facts.length) html += '<p class="result-footnote">目前顯示最近 ' + data.facts.length + ' 項；下載可取得全部成果。</p>';
-    if (data.facts.length) html += '<p class="result-footnote">驗證由模型執行。下方可查看驗證記錄，重要結論仍可人工核對。</p>';
-    if (data.verifications.length) html += '<details class="verification-list"><summary>查看驗證記錄（' + data.verification_count + '）</summary>' + data.verifications.map((v) => '<article class="verification-item"><p>' + escape(v.verdict) + ' · ' + date(v.timestamp_utc) + (v.fact_id ? ' · ' + escape(v.fact_id) : '') + '</p><div class="prose">' + markdown(v.claim) + '</div><details><summary>驗證說明</summary><div class="prose">' + markdown(v.evidence) + '</div></details></article>').join('') + '</details>';
+    let html = '<div class="section-heading"><div><h2>Verified results</h2><p>Read statements and full proofs with rendered formulas.</p></div><button class="button" data-action="download">↓ Download results</button></div>';
+    if (!data.facts.length) html += '<div class="inline-empty"><h2>No verified results yet</h2><p>' + (isRunning() ? 'Danus is still working. Open Progress to see current activity.' : 'Statements accepted by Danus verification will be saved here.') + '</p><button class="button" data-action="progress">View progress</button></div>';
+    html += data.facts.map((fact, i) => '<article class="result-card"><div class="result-card-heading"><div class="result-label"><span>✓</span>Verified by Danus · Result ' + (i + 1) + '</div><span class="fact-id">' + escape(fact.fact_id) + '</span></div><div class="prose">' + markdown(fact.statement) + '</div><h3 class="proof-label">Proof</h3><div class="prose">' + markdown(fact.proof || 'No separate proof text is attached to this fact.') + '</div></article>').join('');
+    if (data.fact_count > data.facts.length) html += '<p class="result-footnote">Showing the latest ' + data.facts.length + ' results. Download to get all results.</p>';
+    if (data.facts.length) html += '<p class="result-footnote">Verification is performed by a model. Review the verification records below and check important conclusions.</p>';
+    if (data.verifications.length) html += '<details class="verification-list"><summary>Verification history (' + data.verification_count + ')</summary>' + data.verifications.map((v) => '<article class="verification-item"><p>' + escape(v.verdict) + ' · ' + date(v.timestamp_utc) + (v.fact_id ? ' · ' + escape(v.fact_id) : '') + '</p><div class="prose">' + markdown(v.claim) + '</div><details><summary>Verification details</summary><div class="prose">' + markdown(v.evidence) + '</div></details></article>').join('') + '</details>';
     setHTML('panel-results', html, true);
   }
   function renderProblem() {
     if (!state.info) return;
-    setHTML('panel-problem', '<div class="section-heading"><div><h2>研究問題</h2><p>建立專案時交給 Danus 的目標與條件。</p></div><button class="button" data-action="duplicate">複製並修改</button></div><article class="result-card prose">' + markdown(state.info.problem) + '</article><p class="result-footnote">想改題目或比較另一種假設，可以複製成新專案，分別保留研究成果。</p>', true);
+    setHTML('panel-problem', '<div class="section-heading"><div><h2>Research problem</h2><p>The goals and assumptions given to Danus when this project was created.</p></div><button class="button" data-action="duplicate">Duplicate and edit</button></div><article class="result-card prose">' + markdown(state.info.problem) + '</article><p class="result-footnote">Duplicate the project to change the problem or compare assumptions while keeping results separate.</p>', true);
   }
   function renderLiterature() {
     if (!state.literature) return;
     if (state.literature.error) {
       $('literature-count').textContent = '—';
-      setHTML('panel-literature', '<div class="notice error">無法讀取文獻紀錄：' + escape(state.literature.error) + '</div>');
+      setHTML('panel-literature', '<div class="notice error">Cannot load literature history: ' + escape(state.literature.error) + '</div>');
       return;
     }
     const events = state.literature.events || [];
@@ -218,19 +218,19 @@
       papers.set(paperKey(event), { ...event, title: 'arXiv:' + event.arxiv_id, source: 'arXiv' });
     }
     $('literature-count').textContent = papers.size;
-    let html = '<div class="section-heading"><div><h2>查閱文獻</h2><p>Danus 會在研究前與卡關時查詢。這裡列出查詢紀錄與來源；文獻仍須經過驗證才能成為成果。</p></div></div>';
-    if (!events.length) html += '<div class="inline-empty"><h2>尚未查詢文獻</h2><p>論文搜尋已備妥。開始或繼續研究後，Danus 使用搜尋工具時會自動留下紀錄。<br>簡單、自足的數學問題可能不需要查詢。</p></div>';
+    let html = '<div class="section-heading"><div><h2>Retrieved literature</h2><p>When search is enabled, Danus can retrieve sources before research and at obstacles. This view records searches and sources. Mathematical claims still require verification.</p></div></div>';
+    if (!events.length) html += '<div class="inline-empty"><h2>No literature searches yet</h2><p>Search activity appears here when Danus uses the enabled research tools.<br>Simple, self-contained problems may not need external sources.</p></div>';
     for (const [key, paper] of papers) {
       const url = /^https?:\/\//i.test(paper.url || '') ? paper.url : '';
-      const authors = Array.isArray(paper.authors) ? paper.authors.join('、') : '';
-      html += '<article class="result-card literature-card"><div class="literature-meta"><span>' + escape(paper.source || '文獻') + (paper.year ? ' · ' + escape(paper.year) : '') + '</span><span>' + (read.has(key) ? '已擷取原文片段' : '搜尋結果') + '</span></div><h3>' + (url ? '<a href="' + escape(url) + '" target="_blank" rel="noopener noreferrer">' + escape(paper.title || url) + ' ↗</a>' : escape(paper.title)) + '</h3><p class="muted small">' + escape(authors) + '</p>' + (paper.abstract ? '<details><summary>摘要／搜尋內容</summary><div class="prose">' + escape(paper.abstract) + '</div></details>' : '') + '<p class="small muted">' + date(paper.at) + (paper.arxiv_id ? ' · arXiv:' + escape(paper.arxiv_id) : '') + (paper.doi ? ' · DOI:' + escape(paper.doi) : '') + '</p></article>';
+      const authors = Array.isArray(paper.authors) ? paper.authors.join(', ') : '';
+      html += '<article class="result-card literature-card"><div class="literature-meta"><span>' + escape(paper.source || 'Literature') + (paper.year ? ' · ' + escape(paper.year) : '') + '</span><span>' + (read.has(key) ? 'Text excerpt retrieved' : 'Search result') + '</span></div><h3>' + (url ? '<a href="' + escape(url) + '" target="_blank" rel="noopener noreferrer">' + escape(paper.title || url) + ' ↗</a>' : escape(paper.title)) + '</h3><p class="muted small">' + escape(authors) + '</p>' + (paper.abstract ? '<details><summary>Abstract / search excerpt</summary><div class="prose">' + escape(paper.abstract) + '</div></details>' : '') + '<p class="small muted">' + date(paper.at) + (paper.arxiv_id ? ' · arXiv:' + escape(paper.arxiv_id) : '') + (paper.doi ? ' · DOI:' + escape(paper.doi) : '') + '</p></article>';
     }
-    if (events.length) html += '<details class="verification-list"><summary>查詢與讀取紀錄（最近 ' + events.length + ' 筆）</summary>' + events.map((e) => '<article class="verification-item"><p>' + date(e.at) + ' · ' + (e.tool === 'read_paper' ? '讀取原文' : '搜尋文獻') + ' · ' + escape(e.author) + '</p><strong>' + escape(e.query) + '</strong><p>' + (e.error ? '未完成：' + escape(e.error) : e.tool === 'read_paper' ? '已擷取片段，位置 ' + escape(e.offset || 0) : '找到 ' + escape(e.count || 0) + ' 筆來源') + '</p>' + (Object.keys(e.errors || {}).length ? '<p>部分來源暫時無法連線：' + escape(Object.keys(e.errors).join('、')) + '</p>' : '') + '</article>').join('') + '</details>';
+    if (events.length) html += '<details class="verification-list"><summary>Search and reading history (latest ' + events.length + ' entries)</summary>' + events.map((e) => '<article class="verification-item"><p>' + date(e.at) + ' · ' + (e.tool === 'read_paper' ? 'Read paper' : 'Search literature') + ' · ' + escape(e.author) + '</p><strong>' + escape(e.query) + '</strong><p>' + (e.error ? 'Incomplete: ' + escape(e.error) : e.tool === 'read_paper' ? 'Excerpt retrieved at offset ' + escape(e.offset || 0) : 'Found ' + escape(e.count || 0) + ' sources') + '</p>' + (Object.keys(e.errors || {}).length ? '<p>Some sources are unavailable: ' + escape(Object.keys(e.errors).join(', ')) + '</p>' : '') + '</article>').join('') + '</details>';
     setHTML('panel-literature', html, true);
   }
   function renderTrash() {
     $('trash-count').hidden = !state.trash.length; $('trash-count').textContent = state.trash.length;
-    setHTML('trash-list', state.trash.length ? state.trash.map((item) => '<article class="trash-item"><div><h3>' + escape(item.title) + '</h3><p>' + date(item.deleted_at) + ' 移到回收筒 · 成果與記錄已保留</p></div><div class="trash-actions"><button class="button" data-restore="' + escape(item.id) + '">還原</button><div class="purge-action"><button class="button danger-text" data-purge="' + escape(item.id) + '">永久刪除</button><small>無法還原</small></div></div></article>').join('') : '<div class="inline-empty"><h2>回收筒是空的</h2><p>移除的專案會出現在這裡，可隨時還原。</p></div>');
+    setHTML('trash-list', state.trash.length ? state.trash.map((item) => '<article class="trash-item"><div><h3>' + escape(item.title) + '</h3><p>' + date(item.deleted_at) + ' · Moved to trash; results and logs retained</p></div><div class="trash-actions"><button class="button" data-restore="' + escape(item.id) + '">Restore</button><div class="purge-action"><button class="button danger-text" data-purge="' + escape(item.id) + '">Delete permanently</button><small>Cannot be undone</small></div></div></article>').join('') : '<div class="inline-empty"><h2>Trash is empty</h2><p>Projects moved to Trash appear here and can be restored.</p></div>');
   }
   async function loadCurrent() {
     const name = state.name;
@@ -242,11 +242,11 @@
       Object.assign(state, { info, progress, results, literature });
       $('connection-error').hidden = true;
       renderWorkspace(); renderProgress(); renderResults(); renderProblem(); renderLiterature();
-      $('sync-status').textContent = '已更新 ' + new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+      $('sync-status').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     } catch (error) {
       if (serial !== state.serial) return;
       $('connection-error').textContent = error.message; $('connection-error').hidden = false;
-      $('sync-status').textContent = '連線中斷';
+      $('sync-status').textContent = 'Disconnected';
     }
   }
   let refreshTask = null;
@@ -266,20 +266,20 @@
       await loadCurrent();
     } catch (error) {
       $('connection-error').hidden = false; $('connection-error').textContent = error.message;
-      $('sync-status').textContent = '連線中斷';
+      $('sync-status').textContent = 'Disconnected';
     } finally { refreshTask = null; }
     })();
     return refreshTask;
   }
   async function checkHealth() {
     try {
-      await api('/api/health'); $('model-status').textContent = '本地模型已連線'; $('model-dot').className = 'status-dot green';
-    } catch { $('model-status').textContent = '模型尚未連線'; $('model-dot').className = 'status-dot red'; }
+      await api('/api/health'); $('model-status').textContent = 'Local model connected'; $('model-dot').className = 'status-dot green';
+    } catch { $('model-status').textContent = 'Model disconnected'; $('model-dot').className = 'status-dot red'; }
   }
   function searchControls(prefix, profile) {
     const providers = state.search.providers;
     const choices = (rows, key) => '<div class="search-provider-grid">' + rows.map((p) => '<label class="search-provider"><input type="checkbox" id="' + prefix + '-' + p.id + '" data-search-group="' + key + '" value="' + escape(p.id) + '" ' + (profile[key].includes(p.id) ? 'checked' : '') + '><span><strong>' + escape(p.name) + '</strong><small>' + escape(p.description) + '</small></span></label>').join('') + '</div>';
-    return '<div class="search-control" id="' + prefix + '-control" data-search-prefix="' + prefix + '"><label class="search-switch"><input type="checkbox" id="' + prefix + '-enabled" ' + (profile.enabled ? 'checked' : '') + '><span>允許網路搜尋與論文工具</span></label><fieldset class="search-source-fields"><legend>免費網頁搜尋</legend>' + choices(providers.web, 'web_engines') + '</fieldset><fieldset class="search-source-fields"><legend>論文與定理</legend>' + choices(providers.papers, 'paper_sources') + '</fieldset></div>';
+    return '<div class="search-control" id="' + prefix + '-control" data-search-prefix="' + prefix + '"><label class="search-switch"><input type="checkbox" id="' + prefix + '-enabled" ' + (profile.enabled ? 'checked' : '') + '><span>Allow web search and paper tools</span></label><fieldset class="search-source-fields"><legend>Free web search</legend>' + choices(providers.web, 'web_engines') + '</fieldset><fieldset class="search-source-fields"><legend>Papers and theorems</legend>' + choices(providers.papers, 'paper_sources') + '</fieldset></div>';
   }
   function updateSearchControls(prefix) {
     const inherited = prefix === 'project-search' && $('project-search-inherit').checked;
@@ -295,16 +295,16 @@
   }
   function renderSearchScope(scope) {
     const prefix = 'settings-' + scope;
-    const title = scope === 'chat' ? '聊天' : 'Danus 預設';
-    const description = scope === 'chat' ? '適用於 Open WebUI 的新訊息，也可在聊天上方快速開關。' : '採用「跟隨預設」的專案會使用這裡的設定。每個專案也能自行選擇。';
+    const title = scope === 'chat' ? 'Chat' : 'Danus defaults';
+    const description = scope === 'chat' ? 'Applies to new Open WebUI messages. You can also toggle search above the chat.' : 'Projects that inherit defaults use these preferences. Individual projects can override them.';
     rendered.delete(prefix);
-    setHTML(prefix, '<form class="search-settings-card" data-search-scope="' + scope + '"><h2>' + title + '</h2><p class="muted small">' + description + '</p>' + searchControls(prefix, state.search[scope]) + '<div id="' + prefix + '-test-result" class="search-test-result" role="status"></div><p id="' + prefix + '-error" class="form-error" hidden role="alert"></p><div class="search-save-actions"><button type="button" class="button" data-test-search="' + prefix + '">測試選取來源</button><button type="submit" class="button primary">儲存設定</button></div><p class="form-hint">測試會送出「cryptography」查詢；沒有勾選的來源不會使用。</p></form>');
+    setHTML(prefix, '<form class="search-settings-card" data-search-scope="' + scope + '"><h2>' + title + '</h2><p class="muted small">' + description + '</p>' + searchControls(prefix, state.search[scope]) + '<div id="' + prefix + '-test-result" class="search-test-result" role="status"></div><p id="' + prefix + '-error" class="form-error" hidden role="alert"></p><div class="search-save-actions"><button type="button" class="button" data-test-search="' + prefix + '">Test selected sources</button><button type="submit" class="button primary">Save settings</button></div><p class="form-hint">The test searches for cryptography using only the selected web sources.</p></form>');
     updateSearchControls(prefix);
   }
   function renderChatSearchToggle() {
     if (!state.search) return;
     const enabled = state.search.chat.enabled;
-    $('chat-search-toggle').textContent = '搜尋：' + (enabled ? '開啟' : '關閉');
+    $('chat-search-toggle').textContent = 'Search: ' + (enabled ? 'On' : 'Off');
     $('chat-search-toggle').setAttribute('aria-pressed', String(enabled));
     $('chat-search-toggle').classList.toggle('search-off', !enabled);
     $('chat-search-toggle').disabled = false;
@@ -323,7 +323,7 @@
     const result = await api('/api/search/settings/' + scope, {method: 'PUT', body: JSON.stringify(profile)});
     state.search[scope] = result.saved;
     renderSearchScope(scope); renderChatSearchToggle();
-    toast(result.warning || (scope === 'chat' ? '已儲存，聊天的新訊息會套用搜尋設定。' : '已儲存，跟隨預設的 Danus 專案會套用。'));
+    toast(result.warning || (scope === 'chat' ? 'Saved. New chat messages will use these search preferences.' : 'Saved. Danus projects that inherit defaults will use these preferences.'));
     await loadCurrent();
   }
   async function openProjectSearch() {
@@ -333,7 +333,7 @@
     try {
       const profile = await api(apiPath(name) + '/search-settings');
       $('project-search-form').dataset.project = name;
-      $('project-search-title').textContent = (state.info?.title || selected()?.title || name) + ' · 搜尋';
+      $('project-search-title').textContent = (state.info?.title || selected()?.title || name) + ' · Search';
       $('project-search-inherit').checked = profile.inherited;
       rendered.delete('project-search-controls');
       setHTML('project-search-controls', searchControls('project-search', profile));
@@ -367,7 +367,7 @@
       const profile = collectSearchControls('project-search');
       profile.inherit = $('project-search-inherit').checked;
       await api(apiPath(event.target.dataset.project) + '/search-settings', {method: 'PUT', body: JSON.stringify(profile)});
-      $('project-search-dialog').close(); await loadCurrent(); toast('專案搜尋設定已儲存。');
+      $('project-search-dialog').close(); await loadCurrent(); toast('Project search preferences saved.');
     } catch (error) { errorIn('project-search-error', error.message); }
     finally { button.disabled = false; }
   };
@@ -384,10 +384,10 @@
     const button = event.target.closest('[data-test-search]');
     if (!button) return;
     const prefix = button.dataset.testSearch;
-    button.disabled = true; $(prefix + '-test-result').textContent = '正在測試選取的搜尋來源…';
+    button.disabled = true; $(prefix + '-test-result').textContent = 'Testing selected search sources…';
     try {
       const result = await api('/api/search/test', {method: 'POST', body: JSON.stringify(collectSearchControls(prefix))});
-      $(prefix + '-test-result').textContent = result.message || result.results.map((r) => (state.search.providers.web.find((p) => p.id === r.id)?.name || r.id) + '：' + (r.ok ? '可連線（' + r.count + ' 筆）' : '暫時不可用／被限流')).join('\n') || '尚未選取網頁搜尋來源。';
+      $(prefix + '-test-result').textContent = result.message || result.results.map((r) => (state.search.providers.web.find((p) => p.id === r.id)?.name || r.id) + ': ' + (r.ok ? 'Available (' + r.count + ' entries)' : 'Unavailable or rate limited')).join('\n') || 'No web search sources selected.';
     } catch (error) { $(prefix + '-test-result').textContent = error.message; }
     finally { updateSearchControls(prefix); }
   });
@@ -402,7 +402,7 @@
   function closeMenu() { $('project-menu').open = false; }
   function newProject(duplicate = false) {
     closeMenu();
-    $('new-title').value = duplicate ? (state.info?.title || selected()?.title || '') + '（副本）' : '';
+    $('new-title').value = duplicate ? (state.info?.title || selected()?.title || '') + ' (copy)' : '';
     $('new-problem').value = duplicate ? state.info?.problem || '' : '';
     $('new-search-mode').value = duplicate && state.info?.search && !state.info.search.inherited ? (state.info.search.enabled ? 'on' : 'off') : 'inherit';
     errorIn('project-form-error', ''); $('project-dialog').showModal();
@@ -414,7 +414,7 @@
     try {
       const stopping = mode !== 'start';
       const result = await api(apiPath(name) + (stopping ? '/stop' : '/start'), { method: 'POST', body: stopping ? JSON.stringify({ mode }) : undefined });
-      toast(stopping ? result.status === 'stopped' ? '已停止，保存的成果仍保留。' : '將於本輪結束後停止；仍可按「立即停止」。' : '已開始推理，進度會自動更新。');
+      toast(stopping ? result.status === 'stopped' ? 'Stopped. Saved results are preserved.' : 'Will stop after this round. You can still select Stop now.' : 'Reasoning started. Progress will update automatically.');
       if (!stopping) route('projects', name, 'progress');
       await refreshAll(true);
     } catch (error) { toast(error.message); }
@@ -424,7 +424,7 @@
   async function restore(id) {
     try {
       const result = await api('/api/danus/trash/' + encodeURIComponent(id) + '/restore', { method: 'POST' });
-      await refreshAll(true); route('projects', result.name, 'results'); toast('專案已還原。');
+      await refreshAll(true); route('projects', result.name, 'results'); toast('Project restored.');
     } catch (error) { toast(error.message); }
   }
   async function purge(id, button) {
@@ -432,15 +432,15 @@
     if (!item || state.busy) return;
     const buttons = [...$('trash-list').querySelectorAll('button')];
     state.busy = true; buttons.forEach((button) => button.disabled = true);
-    button.textContent = '正在刪除…';
+    button.textContent = 'Deleting…';
     try {
       await api('/api/danus/trash/' + encodeURIComponent(id), { method: 'DELETE', body: JSON.stringify({ confirm: true }) });
-      toast('「' + item.title + '」已永久刪除。');
+      toast(item.title + ' has been permanently deleted.');
       await refreshAll(true);
     } catch (error) { toast(error.message); }
     finally {
       state.busy = false; buttons.forEach((button) => button.disabled = false);
-      button.textContent = '永久刪除';
+      button.textContent = 'Delete permanently';
     }
   }
   $('project-form').addEventListener('submit', async (event) => {
@@ -451,7 +451,7 @@
     errorIn('project-form-error', '');
     try {
       const result = await api('/api/danus/projects', { method: 'POST', body: JSON.stringify({ title: $('new-title').value.trim(), problem: $('new-problem').value.trim(), start, search_mode: $('new-search-mode').value }) });
-      $('project-dialog').close(); await refreshAll(true); route('projects', result.name, 'progress'); toast(start ? '專案已建立，Danus 已開始推理。' : '專案已建立，準備好時即可開始。');
+      $('project-dialog').close(); await refreshAll(true); route('projects', result.name, 'progress'); toast(start ? 'Project created. Danus has started reasoning.' : 'Project created. Start whenever you are ready.');
     } catch (error) { errorIn('project-form-error', error.message); }
     finally { state.busy = false; buttons.forEach((b) => b.disabled = false); renderWorkspace(); }
   });
@@ -464,15 +464,15 @@
     const button = event.submitter; button.disabled = true; errorIn('rename-error', '');
     try {
       await api(apiPath($('rename-dialog').dataset.project), { method: 'PATCH', body: JSON.stringify({ title: $('rename-title').value.trim() }) });
-      $('rename-dialog').close(); await refreshAll(true); toast('名稱已更新。');
+      $('rename-dialog').close(); await refreshAll(true); toast('Name updated.');
     } catch (error) { errorIn('rename-error', error.message); }
     finally { button.disabled = false; }
   };
   $('delete-project').onclick = () => {
     closeMenu(); const running = isRunning();
     $('delete-dialog').dataset.project = state.name;
-    $('delete-description').textContent = '「' + (state.info?.title || selected()?.title) + '」' + (running ? '正在執行。確認後會先立即停止，再移到回收筒。' : '將從專案清單移除。');
-    $('confirm-delete').textContent = running ? '停止並移到回收筒' : '移到回收筒';
+    $('delete-description').textContent = (state.info?.title || selected()?.title) + (running ? ' is running. Confirming will stop it immediately and move it to Trash.' : ' will be removed from the project list.');
+    $('confirm-delete').textContent = running ? 'Stop and move to trash' : 'Move to trash';
     errorIn('delete-error', ''); $('delete-dialog').showModal();
   };
   $('confirm-delete').onclick = async () => {
@@ -485,7 +485,7 @@
       const result = await api('/api/danus/admin/projects/' + encodeURIComponent(name), { method: 'DELETE' });
       $('delete-dialog').close(); await refreshAll(true);
       route('projects', state.projects[0]?.project || '', 'results');
-      toast('已移到回收筒，成果與記錄已保留。', '復原', () => restore(result.trash_id));
+      toast('Moved to Trash. Results and logs are preserved.', 'Undo', () => restore(result.trash_id));
     } catch (error) { errorIn('delete-error', error.message); }
     finally { state.busy = false; $('confirm-delete').disabled = false; renderWorkspace(); }
   };
@@ -499,7 +499,7 @@
   $('open-help').onclick = () => $('help-dialog').showModal();
   $('refresh').onclick = async () => { $('refresh').disabled = true; await Promise.all([refreshAll(), checkHealth()]); $('refresh').disabled = false; };
   $('toast-close').onclick = () => { $('toast').hidden = true; };
-  $('copy-log').onclick = async () => { try { await navigator.clipboard.writeText($('raw-log').textContent); toast('工作記錄已複製。'); } catch { toast('無法自動複製，請選取記錄文字後複製。'); } };
+  $('copy-log').onclick = async () => { try { await navigator.clipboard.writeText($('raw-log').textContent); toast('Log copied.'); } catch { toast('Cannot copy automatically. Select the log text and copy it manually.'); } };
   $('toggle-sidebar').onclick = () => {
     if (matchMedia('(max-width:760px)').matches) document.body.classList.toggle('mobile-sidebar');
     else { document.body.classList.toggle('sidebar-collapsed'); storage.set('sidebar-collapsed', String(document.body.classList.contains('sidebar-collapsed'))); }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -322,36 +322,36 @@
     <span style="font-size:22px">🧠</span>
     <div style="flex:1;min-width:0">
       <h1>Local LLM</h1>
-      <div class="model-badge" id="model-name-badge">載入中...</div>
+      <div class="model-badge" id="model-name-badge">Loading...</div>
     </div>
   </div>
   <button id="new-chat-btn" onclick="newConversation()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    新對話
+    New chat
   </button>
-  <button id="danus-btn" onclick="openDanus()">∑ Danus 數學專案</button>
+  <button id="danus-btn" onclick="openDanus()">∑ Danus Math Projects</button>
   <div id="conversations"></div>
   <div id="sidebar-footer">
     <span class="status-dot" id="status-dot"></span>
-    <span id="status-text" style="font-size:12px;color:var(--text-muted)">連線中...</span>
+    <span id="status-text" style="font-size:12px;color:var(--text-muted)">Connecting...</span>
   </div>
 </div>
 
 <div id="danus-overlay" onclick="if(event.target===this) closeDanus()">
-  <div id="danus-panel" role="dialog" aria-modal="true" aria-label="Danus 數學專案">
+  <div id="danus-panel" role="dialog" aria-modal="true" aria-label="Danus Math Projects">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-      <h2>Danus 數學專案</h2>
-      <button class="icon-btn" onclick="closeDanus()" aria-label="關閉">✕</button>
+      <h2>Danus Math Projects</h2>
+      <button class="icon-btn" onclick="closeDanus()" aria-label="Close">✕</button>
     </div>
-    <p>建立數學問題後，可啟動一名 Danus 證明 worker。只有通過獨立驗證的結果才會進入事實圖。</p>
+    <p>Create a mathematical problem and start a Danus proof worker. Only results accepted by independent verification enter the fact graph.</p>
     <form id="danus-form" onsubmit="createDanusProject(event)">
-      <label for="danus-name">專案名稱（小寫英文）</label>
+      <label for="danus-name">Project ID (lowercase letters)</label>
       <input id="danus-name" required pattern="[a-z][a-z0-9_-]*" maxlength="50" placeholder="irrationality-proof">
-      <label for="danus-problem">數學問題</label>
-      <textarea id="danus-problem" required maxlength="20000" placeholder="請完整寫出欲證明的命題與假設"></textarea>
+      <label for="danus-problem">Mathematical problem</label>
+      <textarea id="danus-problem" required maxlength="20000" placeholder="Describe the full statement and assumptions to be proved"></textarea>
       <div class="danus-actions">
-        <button type="submit">建立專案</button>
-        <button type="button" onclick="refreshDanus()">重新整理狀態</button>
+        <button type="submit">New project</button>
+        <button type="button" onclick="refreshDanus()">Refresh status</button>
       </div>
     </form>
     <div id="danus-feedback" aria-live="polite"></div>
@@ -364,21 +364,21 @@
 <!-- Main -->
 <div id="main">
   <div id="chat-header">
-    <h2 id="chat-title">新對話</h2>
-    <button id="stop-btn" onclick="stopGeneration()">⏹ 停止</button>
-    <button id="clear-btn" onclick="clearCurrentChat()">清除對話</button>
+    <h2 id="chat-title">New chat</h2>
+    <button id="stop-btn" onclick="stopGeneration()">⏹ Stop</button>
+    <button id="clear-btn" onclick="clearCurrentChat()">Clear chat</button>
   </div>
 
   <div id="messages">
     <div id="welcome">
       <div class="logo">✨</div>
-      <h2>本地模型對話</h2>
-      <p>支援文字對話、圖片分析、數學公式 (LaTeX)、程式碼。<br>傳送訊息開始對話。</p>
+      <h2>Local model chat</h2>
+      <p>Chat, render LaTeX formulas, and discuss code. Image support depends on your model.<br>Send a message to begin.</p>
       <div class="suggestion-chips">
-        <div class="chip" onclick="sendSuggestion('請介紹你自己的能力')">🤖 介紹能力</div>
-        <div class="chip" onclick="sendSuggestion('請解釋 $E = mc^2$ 的含義，用 LaTeX 格式展示相關公式')">📐 數學公式</div>
-        <div class="chip" onclick="sendSuggestion('寫一個 Python 的快速排序演算法並解釋')">💻 程式碼</div>
-        <div class="chip" onclick="sendSuggestion('證明 $\\sqrt{2}$ 是無理數')">🔢 數學證明</div>
+        <div class="chip" onclick="sendSuggestion('Describe your capabilities')">🤖 Capabilities</div>
+        <div class="chip" onclick="sendSuggestion('Explain $E = mc^2$ and show related formulas in LaTeX')">📐 Math formulas</div>
+        <div class="chip" onclick="sendSuggestion('Write and explain a quicksort algorithm in Python')">💻 Code</div>
+        <div class="chip" onclick="sendSuggestion('Prove $\\sqrt{2}$ is irrational')">🔢 Math proof</div>
       </div>
     </div>
   </div>
@@ -387,23 +387,23 @@
 
   <div id="input-area">
     <div id="sys-prompt-section">
-      <button id="sys-prompt-toggle" onclick="toggleSysPrompt()">▶ 系統提示詞</button>
-      <textarea id="sys-prompt-box" rows="2" placeholder="設定模型的角色或行為...（可選）"></textarea>
+      <button id="sys-prompt-toggle" onclick="toggleSysPrompt()">▶ System prompt</button>
+      <textarea id="sys-prompt-box" rows="2" placeholder="Set the model role or behavior... (optional)"></textarea>
     </div>
     <div id="input-box">
-      <label class="icon-btn" title="上傳圖片">
+      <label class="icon-btn" title="Upload an image">
         <input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
       </label>
-      <textarea id="user-input" rows="1" placeholder="輸入訊息... (Enter 送出，Shift+Enter 換行)"
+      <textarea id="user-input" rows="1" placeholder="Message... (Enter to send, Shift+Enter for a new line)"
         onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-      <button id="send-btn" onclick="sendMessage()" title="送出">
+      <button id="send-btn" onclick="sendMessage()" title="Send">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>
     <div id="input-meta">
       <span id="token-info"></span>
-      <span>Shift+Enter 換行</span>
+      <span>Shift+Enter for a new line</span>
     </div>
   </div>
 </div>
@@ -434,7 +434,7 @@ renderer.code = (code, lang) => {
   try {
     highlighted = hljs.highlight(code, { language }).value;
   } catch { highlighted = escHtml(code); }
-  return `<pre><button class="copy-btn" type="button">複製</button><code class="hljs language-${language}">${highlighted}</code></pre>`;
+  return `<pre><button class="copy-btn" type="button">Copy</button><code class="hljs language-${language}">${highlighted}</code></pre>`;
 };
 marked.use({ renderer });
 }
@@ -450,13 +450,13 @@ async function checkStatus() {
     const txt = document.getElementById('status-text');
     if (j.status === 'ok') {
       dot.className = 'status-dot online';
-      txt.textContent = '模型在線';
+      txt.textContent = 'Model online';
     } else {
       dot.className = 'status-dot';
-      txt.textContent = '離線';
+      txt.textContent = 'Offline';
     }
   } catch {
-    document.getElementById('status-text').textContent = '無法連線';
+    document.getElementById('status-text').textContent = 'Cannot connect';
   }
   // Load model name
   try {
@@ -476,7 +476,7 @@ function saveConversations() {
 
 function newConversation() {
   const id = Date.now().toString();
-  conversations.unshift({ id, title: '新對話', messages: [] });
+  conversations.unshift({ id, title: 'New chat', messages: [] });
   saveConversations();
   loadConversation(id);
   renderConvList();
@@ -485,7 +485,7 @@ function newConversation() {
 function loadConversation(id) {
   currentId = id;
   const conv = conversations.find(c => c.id === id);
-  document.getElementById('chat-title').textContent = conv?.title || '新對話';
+  document.getElementById('chat-title').textContent = conv?.title || 'New chat';
   renderMessages();
   renderConvList();
 }
@@ -532,13 +532,13 @@ function renderMessages() {
   if (!conv || conv.messages.length === 0) {
     el.innerHTML = `<div id="welcome">
       <div class="logo">✨</div>
-      <h2>本地模型對話</h2>
-      <p>支援文字對話、圖片分析、數學公式 (LaTeX)、程式碼。<br>傳送訊息開始對話。</p>
+      <h2>Local model chat</h2>
+      <p>Chat, render LaTeX formulas, and discuss code. Image support depends on your model.<br>Send a message to begin.</p>
       <div class="suggestion-chips">
-        <div class="chip" onclick="sendSuggestion('請介紹你自己的能力')">🤖 介紹能力</div>
-        <div class="chip" onclick="sendSuggestion('請解釋 $E = mc^2$ 的含義，用 LaTeX 格式展示相關公式')">📐 數學公式</div>
-        <div class="chip" onclick="sendSuggestion('寫一個 Python 的快速排序演算法並解釋')">💻 程式碼</div>
-        <div class="chip" onclick="sendSuggestion('證明 $\\\\sqrt{2}$ 是無理數')">🔢 數學證明</div>
+        <div class="chip" onclick="sendSuggestion('Describe your capabilities')">🤖 Capabilities</div>
+        <div class="chip" onclick="sendSuggestion('Explain $E = mc^2$ and show related formulas in LaTeX')">📐 Math formulas</div>
+        <div class="chip" onclick="sendSuggestion('Write and explain a quicksort algorithm in Python')">💻 Code</div>
+        <div class="chip" onclick="sendSuggestion('Prove $\\\\sqrt{2}$ is irrational')">🔢 Math proof</div>
       </div>
     </div>`;
     return;
@@ -700,7 +700,7 @@ async function sendMessage() {
         type: 'image_url',
         image_url: { url: `data:${img.mimeType};base64,${img.base64}` }
       })),
-      { type: 'text', text: text || '請描述這張圖片' }
+      { type: 'text', text: text || 'Describe this image' }
     ];
   } else {
     userContent = text;
@@ -714,7 +714,7 @@ async function sendMessage() {
 
   // Update conv title
   if (conv.messages.length === 1) {
-    conv.title = (typeof userContent === 'string' ? userContent : text).slice(0, 30) || '圖片對話';
+    conv.title = (typeof userContent === 'string' ? userContent : text).slice(0, 30) || 'Image chat';
     document.getElementById('chat-title').textContent = conv.title;
   }
   saveConversations();
@@ -797,16 +797,16 @@ async function sendMessage() {
     }
   } catch (err) {
     if (err.name !== 'AbortError') {
-      fullText = '❌ 發生錯誤：' + err.message;
+      fullText = '❌ Error: ' + err.message;
     } else {
-      fullText = fullText || '(已停止)';
+      fullText = fullText || '(Stopped)';
     }
   }
 
   // Finalize
   thinkEl = document.getElementById(thinkId);
   if (thinkEl) {
-    thinkEl.querySelector('.bubble').innerHTML = parseMarkdown(fullText || '(無回覆)');
+    thinkEl.querySelector('.bubble').innerHTML = parseMarkdown(fullText || '(No response)');
   }
 
   conv.messages.push({ role: 'assistant', content: fullText });
@@ -830,8 +830,8 @@ function stopGeneration() {
 function copyCode(btn) {
   const code = btn.nextElementSibling.textContent;
   navigator.clipboard.writeText(code).then(() => {
-    btn.textContent = '已複製!';
-    setTimeout(() => btn.textContent = '複製', 2000);
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
   });
 }
 
@@ -845,10 +845,10 @@ function toggleSysPrompt() {
   const btn = document.getElementById('sys-prompt-toggle');
   if (box.style.display === 'none' || !box.style.display) {
     box.style.display = 'block';
-    btn.textContent = '▼ 系統提示詞';
+    btn.textContent = '▼ System prompt';
   } else {
     box.style.display = 'none';
-    btn.textContent = '▶ 系統提示詞';
+    btn.textContent = '▶ System prompt';
   }
 }
 
@@ -887,10 +887,10 @@ async function refreshDanus() {
       danusRequest('/api/danus/projects')
     ]);
     feedback.textContent = health.verifier
-      ? 'Danus 驗證服務已就緒。'
-      : 'Danus 驗證服務尚未就緒，請檢查容器啟動記錄。';
+      ? 'Danus verification is ready.'
+      : 'Danus verification is not ready. Check the container startup logs.';
     if (!projects.length) {
-      list.innerHTML = '<p>尚無數學專案。</p>';
+      list.innerHTML = '<p>No math projects yet.</p>';
       document.getElementById('danus-progress').hidden = true;
       document.getElementById('danus-results').hidden = true;
       selectedDanusProject = null;
@@ -902,18 +902,18 @@ async function refreshDanus() {
     ));
     list.innerHTML = projects.map((p, i) => {
       const states = details[i].workers.map(w =>
-        `${escHtml(w.worker)}：${escHtml(w.state)}，第 ${Number(w.round || 0)} 輪`
+        `${escHtml(w.worker)}: ${escHtml(w.state)}, round ${Number(w.round || 0)}`
       ).join('；');
       const name = escHtml(p.project);
       const arg = escHtml(JSON.stringify(p.project));
       const live = Number(p.live || 0);
       return `<div class="danus-project">
         <strong>${name}</strong>
-        <small>${live}/${Number(p.workers || 0)} 位 worker 執行中 · ${states || '尚無狀態'}</small>
-        <button onclick="openDanusProject(${arg})">查看過程與結果</button>
-        <button onclick="controlDanus(${arg}, 'start')">啟動</button>
-        <button onclick="controlDanus(${arg}, 'stop')">立即停止</button>
-        <button class="danus-delete" onclick="deleteDanusProject(${arg})" ${live > 0 ? 'disabled title="請先停止執行中的 worker"' : ''}>刪除專案</button>
+        <small>${live}/${Number(p.workers || 0)} workers running · ${states || 'No status yet'}</small>
+        <button onclick="openDanusProject(${arg})">View progress and results</button>
+        <button onclick="controlDanus(${arg}, 'start')">Start</button>
+        <button onclick="controlDanus(${arg}, 'stop')">Stop now</button>
+        <button class="danus-delete" onclick="deleteDanusProject(${arg})" ${live > 0 ? 'disabled title="Stop running workers first"' : ''}>Delete project</button>
       </div>`;
     }).join('');
     if (!projects.some(p => p.project === selectedDanusProject)) {
@@ -921,7 +921,7 @@ async function refreshDanus() {
     }
     await openDanusProject(selectedDanusProject);
   } catch (error) {
-    feedback.textContent = '無法讀取 Danus：' + error.message;
+    feedback.textContent = 'Cannot load Danus: ' + error.message;
     list.innerHTML = '';
   }
 }
@@ -931,13 +931,13 @@ function formatDanusElapsed(seconds) {
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
   const secs = total % 60;
-  return hours ? `${hours} 小時 ${minutes} 分` : minutes ? `${minutes} 分 ${secs} 秒` : `${secs} 秒`;
+  return hours ? `${hours}h ${minutes}m` : minutes ? `${minutes}m ${secs}s` : `${secs}s`;
 }
 
 function formatDanusTime(value) {
   if (!value) return '';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('zh-TW');
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('en-US');
 }
 
 async function openDanusProject(name) {
@@ -952,7 +952,7 @@ async function showDanusProgress(name, quiet = false) {
   const box = document.getElementById('danus-progress');
   const requestId = ++danusProgressRequestId;
   box.hidden = false;
-  if (!quiet) box.textContent = '正在讀取中間狀態…';
+  if (!quiet) box.textContent = 'Loading progress…';
   try {
     const data = await danusRequest('/api/danus/projects/' + encodeURIComponent(name) + '/progress');
     if (requestId !== danusProgressRequestId || selectedDanusProject !== name) return;
@@ -967,25 +967,25 @@ async function showDanusProgress(name, quiet = false) {
     const scrollTop = panel.scrollTop;
     const workerHtml = workers.map((w, index) => {
       const round = Number(w.round || 0);
-      const age = w.age_s == null ? '' : ` · ${w.alive ? '本輪已執行' : '距上輪狀態'} ${formatDanusElapsed(w.age_s)}`;
-      const logTime = w.last_log_at ? `<small>工作記錄更新：${escHtml(formatDanusTime(w.last_log_at))}</small>` : '';
-      const fact = w.last_fact_id ? `<small>最新事實 ID：${escHtml(w.last_fact_id)}</small>` : '';
-      const state = w.label || w.state || '狀態未知';
-      const log = w.log_tail ? `<details data-worker-index="${index}"><summary>工作記錄（最近一輪）</summary>
+      const age = w.age_s == null ? '' : ` · ${w.alive ? 'Elapsed in this round' : 'Since last round update'} ${formatDanusElapsed(w.age_s)}`;
+      const logTime = w.last_log_at ? `<small>Log updated: ${escHtml(formatDanusTime(w.last_log_at))}</small>` : '';
+      const fact = w.last_fact_id ? `<small>Latest fact ID: ${escHtml(w.last_fact_id)}</small>` : '';
+      const state = w.label || w.state || 'Unknown status';
+      const log = w.log_tail ? `<details data-worker-index="${index}"><summary>Logs (latest round)</summary>
         <pre class="danus-log">${escHtml(String(w.log_tail).slice(-20000))}</pre></details>` : '';
       return `<div class="danus-worker"><strong>${escHtml(w.worker || 'worker')}</strong>
-        <small>${escHtml(state)} · 第 ${Number.isFinite(round) ? round : 0} 輪${escHtml(age)}</small>${logTime}${fact}${log}</div>`;
+        <small>${escHtml(state)} · Round ${Number.isFinite(round) ? round : 0}${escHtml(age)}</small>${logTime}${fact}${log}</div>`;
     }).join('');
     const eventHtml = recent.slice(0, 12).map(e => {
-      const round = e.round == null ? '' : `第 ${Number(e.round) || 0} 輪`;
+      const round = e.round == null ? '' : `Round ${Number(e.round) || 0}`;
       const label = [formatDanusTime(e.time), e.worker, round, e.kind].filter(Boolean).join(' · ');
-      const content = String(e.text || e.message || '無詳細內容').slice(0, 4000);
+      const content = String(e.text || e.message || 'No details available').slice(0, 4000);
       return `<div class="danus-event"><small>${escHtml(label)}</small><div>${escHtml(content)}</div></div>`;
     }).join('');
-    box.innerHTML = `<h3>${escHtml(name)} 的中間狀態</h3>
-      <div class="danus-meta">執行時每 5 秒自動更新；中間記錄尚未經過獨立驗證。</div>
-      <h4>Worker</h4>${workerHtml || '<p>尚無 worker；按「啟動」開始。</p>'}
-      <h4>近期進度</h4>${eventHtml || '<p>目前尚無進度事件。</p>'}`;
+    box.innerHTML = `<h3>${escHtml(name)} — Progress</h3>
+      <div class="danus-meta">Updates every 5 seconds while running. Intermediate notes have not passed independent verification.</div>
+      <h4>Worker</h4>${workerHtml || '<p>No workers yet. Select Start to begin.</p>'}
+      <h4>Recent progress</h4>${eventHtml || '<p>No progress events yet.</p>'}`;
     for (const [index, logScrollTop] of openLogs) {
       const logDetails = box.querySelector(`.danus-worker details[data-worker-index="${index}"]`);
       if (logDetails) {
@@ -996,7 +996,7 @@ async function showDanusProgress(name, quiet = false) {
     if (quiet) panel.scrollTop = scrollTop;
   } catch (error) {
     if (requestId === danusProgressRequestId && selectedDanusProject === name) {
-      box.textContent = '無法讀取中間狀態：' + error.message;
+      box.textContent = 'Cannot load progress: ' + error.message;
     }
   }
 }
@@ -1006,32 +1006,32 @@ async function showDanusResults(name) {
   const box = document.getElementById('danus-results');
   const requestId = ++danusResultsRequestId;
   box.hidden = false;
-  box.textContent = '正在讀取結果…';
+  box.textContent = 'Loading results…';
   try {
     const data = await danusRequest('/api/danus/projects/' + encodeURIComponent(name) + '/results');
     if (requestId !== danusResultsRequestId || selectedDanusProject !== name) return;
     const facts = data.facts.map(f => `<details>
       <summary>${escHtml(f.statement || f.fact_id)}</summary>
-      <div class="danus-meta">事實 ID：${escHtml(f.fact_id)} · 已通過獨立驗證</div>
+      <div class="danus-meta">Fact ID: ${escHtml(f.fact_id)} · Accepted by independent verification</div>
       <div class="danus-proof">${parseMarkdown(f.proof || '')}</div>
     </details>`).join('');
     const checks = data.verifications.map(v => {
-      const verdict = v.verdict === 'correct' ? '通過' : v.verdict === 'wrong' ? '未通過' : '驗證錯誤';
-      const time = v.timestamp_utc ? new Date(v.timestamp_utc).toLocaleString('zh-TW') : '';
-      return `<details><summary>${escHtml(verdict)}：${escHtml(v.claim || '')}</summary>
-        <div class="danus-meta">${escHtml(time)}${v.fact_id ? ' · 事實 ID：' + escHtml(v.fact_id) : ''}</div>
+      const verdict = v.verdict === 'correct' ? 'Accepted' : v.verdict === 'wrong' ? 'Rejected' : 'Verification error';
+      const time = v.timestamp_utc ? new Date(v.timestamp_utc).toLocaleString('en-US') : '';
+      return `<details><summary>${escHtml(verdict)}: ${escHtml(v.claim || '')}</summary>
+        <div class="danus-meta">${escHtml(time)}${v.fact_id ? ' · Fact ID: ' + escHtml(v.fact_id) : ''}</div>
         <div class="danus-proof">${parseMarkdown(v.evidence || '')}</div>
       </details>`;
     }).join('');
-    box.innerHTML = `<h3>${escHtml(name)} 的結果</h3>
-      <h4>已驗證成果（${Number(data.fact_count || 0)}）</h4>
-      ${facts || '<p>目前尚無通過驗證的成果。請查看上方的 worker 狀態與工作記錄。</p>'}
-      <h4>驗證紀錄（${Number(data.verification_count || 0)}）</h4>
-      ${checks || '<p>尚無驗證紀錄。</p>'}`;
+    box.innerHTML = `<h3>${escHtml(name)} — Results</h3>
+      <h4>Verified results (${Number(data.fact_count || 0)})</h4>
+      ${facts || '<p>No verified results yet. Check the worker status and logs above.</p>'}
+      <h4>Verification history (${Number(data.verification_count || 0)})</h4>
+      ${checks || '<p>No verification records yet.</p>'}`;
     renderMath();
   } catch (error) {
     if (requestId === danusResultsRequestId && selectedDanusProject === name) {
-      box.textContent = '無法讀取結果：' + error.message;
+      box.textContent = 'Cannot load results: ' + error.message;
     }
   }
 }
@@ -1045,13 +1045,13 @@ async function createDanusProject(event) {
     await danusRequest('/api/danus/projects', {
       method: 'POST', body: JSON.stringify({ name, problem })
     });
-    feedback.textContent = `已建立 ${name}。按「啟動」開始證明。`;
+    feedback.textContent = `Created ${name}. Select Start to begin proving.`;
     document.getElementById('danus-form').reset();
     selectedDanusProject = name;
     await refreshDanus();
     notifyDanusProjectsChanged();
   } catch (error) {
-    feedback.textContent = '建立失敗：' + error.message;
+    feedback.textContent = 'Creation failed: ' + error.message;
   }
 }
 
@@ -1067,25 +1067,25 @@ async function deleteDanusProject(name) {
     const projects = await danusRequest('/api/danus/projects');
     const project = projects.find(item => item.project === name);
     if (!project) {
-      feedback.textContent = '找不到此專案，請重新整理狀態。';
+      feedback.textContent = 'Project not found. Refresh the status.';
       await refreshDanus();
       return;
     }
     if (Number(project.live || 0) > 0) {
-      feedback.textContent = '請先停止執行中的 worker，才能刪除專案。';
+      feedback.textContent = 'Stop running workers before deleting the project.';
       await refreshDanus();
       return;
     }
-    if (!window.confirm(`將「${name}」移到回收筒？成果與記錄會保留，可以從整合頁面的回收筒還原。`)) return;
+    if (!window.confirm(`Move ${name} to Trash? Results and logs will be kept. Restore it from Trash in the unified workspace.`)) return;
     await danusRequest('/api/danus/admin/projects/' + encodeURIComponent(name), {
       method: 'DELETE'
     });
     if (selectedDanusProject === name) selectedDanusProject = null;
     await refreshDanus();
     notifyDanusProjectsChanged();
-    feedback.textContent = `已將 ${name} 移到回收筒。可從整合頁面還原。`;
+    feedback.textContent = `Moved ${name} to Trash. You can restore it from the unified workspace.`;
   } catch (error) {
-    feedback.textContent = '刪除失敗：' + error.message;
+    feedback.textContent = 'Deletion failed: ' + error.message;
   }
 }
 
@@ -1096,9 +1096,9 @@ async function controlDanus(name, action) {
       { method: 'POST' });
     selectedDanusProject = name;
     await refreshDanus();
-    feedback.textContent = `${name} 已${action === 'start' ? '啟動' : '停止'}。`;
+    feedback.textContent = `${name} ${action === 'start' ? 'started' : 'stopped'}.`;
   } catch (error) {
-    feedback.textContent = '操作失敗：' + error.message;
+    feedback.textContent = 'Operation failed: ' + error.message;
   }
 }
 

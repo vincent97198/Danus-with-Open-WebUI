@@ -180,7 +180,7 @@ def search_papers(query: str, num_results: int = 5, source: str = "all", sort: s
             return name, [], f"{type(exc).__name__}: {exc}"[:350]
     names = [name for name in providers if name in policy["paper_sources"]] if source == "all" else [source]
     if not names:
-        return {**out, "count": 0, "disabled": True, "error": "尚未啟用任何論文來源。"}
+        return {**out, "count": 0, "disabled": True, "error": "No paper sources are enabled."}
     if source != "all" and settings.denial(source, policy=policy):
         return {**settings.denial(source, policy=policy), "query": q}
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
@@ -226,7 +226,7 @@ def _web_provider(engine: str, query: str, count: int) -> list[dict]:
                 topics.extend(topic["Topics"])
             if topic.get("FirstURL") and topic.get("Text"):
                 rows.append({"title": topic["Text"][:100], "url": topic["FirstURL"], "abstract": topic["Text"][:2500]})
-        return [{**r, "source": "DuckDuckGo 即時答案", "engine": engine, "content_level": "summary"} for r in rows[:count]]
+        return [{**r, "source": "DuckDuckGo Instant Answers", "engine": engine, "content_level": "summary"} for r in rows[:count]]
     if engine in ("bing", "brave", "google", "duckduckgo"):
         # Search query bang/category shortcuts must not override the user's
         # selected engine (e.g. a model must not sneak !google into a Bing call).
@@ -258,7 +258,7 @@ def search_web(query: str, num_results: int = 5, engine: str = "all") -> dict[st
     engines = policy["web_engines"] if engine == "all" else [engine]
     out = {"query": q, "results": [], "errors": {}, "engines": engines, "trust_note": TRUST_NOTE}
     if not q or not engines:
-        return {**out, "count": 0, "error": "請輸入查詢並啟用至少一個網頁搜尋來源。"}
+        return {**out, "count": 0, "error": "Enter a query and enable at least one web search source."}
     def fetch(name):
         try:
             return name, _cached(f"web-v2:{name}:{n}:{q}", 1800, lambda: _web_provider(name, q, n)), None
@@ -278,7 +278,7 @@ def search_web(query: str, num_results: int = 5, engine: str = "all") -> dict[st
                 out["results"].append(row)
     out["results"] = out["results"][:n]
     if len(out["errors"]) == len(engines):
-        out["error"] = "選取的搜尋來源暫時無法連線。請稍後重試或在搜尋設定選擇其他來源。"
+        out["error"] = "The selected search sources are unavailable. Try again later or choose other sources in Search settings."
     return {**out, "count": len(out["results"])}
 
 

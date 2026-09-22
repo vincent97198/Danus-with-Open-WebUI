@@ -1,66 +1,76 @@
-# Danus 本機研究工作區
+# Danus Local Research Workspace
 
-把 **Open WebUI 聊天、Danus 數學專案與免費文獻搜尋**整合在同一個網頁。
-使用你已經啟動的本機模型，預設入口為 **<http://127.0.0.1:3001/>**。
+A local web workspace combining **Open WebUI chat, Danus mathematical reasoning, PDF conversations, and web and paper search**.
 
-[English quick start](README.en.md) · [檔案與來源](THIRD_PARTY_NOTICES.md) · [版本紀錄](CHANGELOG.md)
+Connect an existing local model and open **[http://127.0.0.1:3001/](http://127.0.0.1:3001/)**.
 
-## 能做什麼
+The interface, default research assistant, and documentation use English. Project names and user content can use any language.
 
-- 與本機模型聊天、上傳 PDF 提問。
-- 建立數學專案，查看進度、完整寬度的成果、文獻與事實圖。
-- 立即停止、重新命名、複製專案與下載成果。
-- 移到回收筒、還原，或永久刪除。回收筒內的永久刪除按下即執行，不再二次確認。
-- 選擇免費網頁／論文來源；聊天和每個 Danus 專案都能各自開關搜尋。
-- 搜尋 arXiv、Crossref、IACR ePrint 與 Matlas；arXiv 支援 HTML／PDF 原文擷取。
+[Quick start](README.en.md) · [Third-party notices](THIRD_PARTY_NOTICES.md) · [Changelog](CHANGELOG.md)
 
-這是可自行部署的原始碼套件，包含必要的後端與設定。**模型權重、使用者專案、聊天紀錄、論文快取與私人金鑰不包含在套件中。**
+## Features
 
-## 1. 準備 Docker 和模型
+- Chat with your local model and upload PDFs for questions.
+- Create mathematical research projects and view intermediate progress.
+- Read full-width results, proofs, literature references, and fact dependencies.
+- Stop, rename, duplicate, and export projects.
+- Move projects to Trash, restore them, or permanently delete them. Permanent deletion in Trash takes effect immediately without another confirmation.
+- Configure online search separately for chat and Danus, with per-project overrides.
+- Search arXiv, Crossref, IACR ePrint, and Matlas.
+- Read arXiv HTML or extracted PDF text.
+- Use the included TeX Live environment with Danus authoring workflows.
 
-需要：
+This source package includes the portal, supporting backend, and integration settings. Model weights, user projects, chat history, document caches, and private credentials are excluded.
 
-1. Docker Desktop（Windows/macOS，使用 Linux containers），或 Linux 的 Docker Engine＋Compose v2。
-2. 一個已啟動、容器可以連到的本機模型服務。
-3. 首次安裝時可連網，以下載映像和執行依賴。
+## 1. Requirements and Model Startup
 
-本版沿用 llama.cpp／KVMem 類型的模型介面，模型端需提供：
+You need:
 
-| 路徑 | 用途 |
+1. Docker Desktop with Linux containers on Windows/macOS, or Docker Engine with Compose v2 on Linux.
+2. An existing local model service reachable from Docker containers.
+3. Internet access for initial dependency downloads and enabled searches.
+4. Available host ports **3000**, **3001**, and **7860**.
+5. PowerShell on Windows, or Bash and curl on Linux/macOS.
+
+The integration expects a llama.cpp/KVMem-style model service providing:
+
+| Endpoint | Purpose |
 |---|---|
-| `GET /health` | 連線狀態 |
-| `GET /v1/models` | 取得模型名稱 |
-| `POST /v1/chat/completions` | 串流聊天與工具呼叫 |
+| `GET /health` | Model service health |
+| `GET /v1/models` | Available model IDs |
+| `POST /v1/chat/completions` | Chat, streaming, and tool calls |
 
-Danus 使用工具呼叫，模型需能可靠處理工具與長上下文。本版的轉接設定使用 **65,536 tokens**；請讓模型伺服器也提供相應上下文。模型速度、記憶體需求與數學能力取決於你選擇的模型。
+Danus needs reliable tool calling and a long context window. The included bridge uses **65,536 tokens**; configure the model server accordingly. Speed, memory requirements, and reasoning quality depend on your model and hardware.
 
-此套件**不安裝、不下載，也不啟動你的模型容器**。先用 Docker Desktop 或你原本的方式把模型啟動。例如模型容器已存在時：
+Start your model using Docker Desktop or its normal startup method. For an existing container:
 
-```powershell
+```bash
 docker start YOUR_MODEL_CONTAINER
 ```
 
-將 `YOUR_MODEL_CONTAINER` 換成自己的容器名稱。模型端預設採本機、免驗證介面；此版本沒有把外部模型 API 金鑰自動轉交給模型伺服器。
+Replace `YOUR_MODEL_CONTAINER` with your container name. Model installation and startup are managed separately from this package.
 
-## 2. 建立本機設定
+The current adapter assumes a local model endpoint without API authentication. It does not automatically forward a private model API key.
 
-在本套件資料夾開啟終端機。
+## 2. Prepare Local Configuration
 
-**Windows PowerShell：**
+Open a terminal in the repository root.
+
+### Windows PowerShell
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare.ps1
 notepad .env
 ```
 
-**Linux / macOS：**
+### Linux / macOS
 
 ```bash
 bash scripts/prepare.sh
-# 使用文字編輯器開啟 .env
+# Open .env in your preferred text editor.
 ```
 
-準備腳本只會複製不存在的範本，保留已存在的設定。它會建立：
+The script copies missing templates and preserves existing settings. It creates:
 
 ```text
 .env
@@ -68,172 +78,223 @@ danus-setup/codex-danus.env
 danus-setup/danus.env
 ```
 
-在 `.env` 設定兩個值：
+Edit `.env`:
 
 ```dotenv
 MODEL_BASE_URL=http://host.docker.internal:8080
-MODEL_NAME=你的模型服務回傳的實際模型名稱
+MODEL_NAME=your-actual-model-id
 COMPOSE_PROJECT_NAME=danus-webui
 ```
 
-- `MODEL_BASE_URL` 必須是 **Docker 容器可以連線**的模型網址；結尾不要加 `/v1` 或 `/`。
-- Docker Desktop 上，`host.docker.internal` 通常用來連到主機發布的模型服務。
-- Linux 請確認模型服務的監聽位址可由容器存取；若模型在同一個 Docker 網路，也可使用可解析的模型容器名稱。
-- `MODEL_NAME` 不是檔案路徑，而是 `/v1/models` 回傳的 `id`。
+- **MODEL_BASE_URL:** Must be reachable from the containers. Omit `/v1` and any trailing slash.
+- **MODEL_NAME:** The exact `id` returned by `/v1/models`, not a local file path.
+- **COMPOSE_PROJECT_NAME:** Use a distinct name for each installation.
 
-例如在主機取得可用名稱：
+On Docker Desktop, `host.docker.internal` generally reaches a service published on the host. On Linux, ensure the model listens on an interface accessible from Docker. Services sharing a Docker network can also use a resolvable container or service name.
+
+To find a model ID on host port 8080:
 
 ```powershell
 (Invoke-RestMethod http://127.0.0.1:8080/v1/models).data.id
 ```
 
-或：
+Or:
 
 ```bash
 curl http://127.0.0.1:8080/v1/models
 ```
 
-`local-model` 是 Danus 轉接服務內部使用的固定別名，**不必把它改成模型檔名**。實際模型由 `.env` 的 `MODEL_NAME` 決定。
+The name `local-model` in the Danus bridge is an internal alias. Keep it as supplied; `MODEL_NAME` selects the actual model.
 
-## 3. 首次啟動
+## 3. Start the Workspace
 
-**Windows：**
+### Windows
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start.ps1
 ```
 
-完成第 2 步後，也可以雙擊 `webui/start.bat`。它只管理這份套件的服務，不會尋找或啟動特定名稱的模型容器。
+After configuring `.env`, you can also double-click `webui/start.bat`.
 
-**Linux / macOS：**
+### Linux / macOS
 
 ```bash
 bash scripts/start.sh
 ```
 
-首次啟動會建置既有 Dockerfile，等待服務就緒，並設定 Open WebUI 的「本機研究助理」。套件內的 `danus-setup/Dockerfile` 與原始工作區的版本相同；通常不需要修改 Dockerfile。
+The script builds and starts the services, waits for readiness, and configures **Local Research Assistant** in Open WebUI. It then opens or prints the workspace URL.
 
-也可手動執行相同步驟：
+The integration Dockerfile is preserved from the original setup. Normal installation does not require editing it.
+
+Initial startup downloads Node.js, Python dependencies, and the container's Codex CLI. The supplied API bridge connects to your local model without a ChatGPT login. Runtime dependencies are kept in a Docker volume.
+
+### Manual startup
+
+After preparing the three local configuration files:
 
 ```bash
 docker compose up -d --build
 docker compose ps
-# 等待 3001/api/search/settings 和 3000/health 可連線後：
+```
+
+Wait for [the workspace API](http://127.0.0.1:3001/api/search/settings) and [Open WebUI health](http://127.0.0.1:3000/health), then run:
+
+```bash
 docker compose exec -T local-llm-webui /opt/danus/runtime/venv/bin/python /opt/webui/configure_research.py
 ```
 
-初次會下載 Node、Python 依賴與容器內的 Codex CLI；使用本機模型橋接，不需要 ChatGPT 登入。這些下載會保存在 Docker 資料卷，初次耗時取決於網速。
+### Open the interface
 
-### 開啟網頁
-
-| 入口 | 網址 |
+| Interface | Address |
 |---|---|
-| 整合工作區 | <http://127.0.0.1:3001/> |
-| Open WebUI 獨立聊天 | <http://127.0.0.1:3000/> |
-| 搜尋設定 | <http://127.0.0.1:3001/#settings> |
-| 後端／舊版控制頁 | <http://127.0.0.1:7860/> |
+| Unified workspace | [http://127.0.0.1:3001/](http://127.0.0.1:3001/) |
+| Standalone Open WebUI | [http://127.0.0.1:3000/](http://127.0.0.1:3000/) |
+| Search settings | [http://127.0.0.1:3001/#settings](http://127.0.0.1:3001/#settings) |
+| Backend and legacy controls | [http://127.0.0.1:7860/](http://127.0.0.1:7860/) |
 
-預設的 `3000`、`3001`、`7860` 必須未被其他程式占用。若你已有另一套工作區在使用這些埠，請在另一台電腦使用本套件，或先自行規劃不同連接埠。
+The default ports must be free. A different Compose project name does not prevent port conflicts with another installation.
 
-## 4. 日常使用
+### Update an existing installation to English
 
-### 聊天和 PDF
+Run the startup script again after updating the source. It rebuilds the application and refreshes the package-managed research assistant's name, instructions, description, and suggested prompts.
 
-在「聊天」選「本機研究助理」，直接提問或按附件按鈕上傳 PDF。聊天室上方的搜尋按鈕可切換是否查外部資料。
+The assistant now responds in English by default and can use another language when requested. Existing chats, project titles, and research content retain their original text.
 
-### Danus 數學專案
+Open WebUI defaults to English for new sessions. If a browser or account already has a saved language preference, select **English (US)** in Open WebUI's language settings and refresh the page.
 
-1. 按左側 **＋**，輸入名稱與數學問題。
-2. 選擇搜尋模式：跟隨預設、開啟，或只使用現有資料。
-3. 按「建立並開始」，在「進度」查看工作記錄。
-4. 在「成果」閱讀已通過 Danus 驗證的命題與證明；「文獻」顯示查詢來源；「事實圖」顯示依賴。
-5. 「立即停止」中止目前 worker；已保存內容仍保留。重新啟動 Docker 後，需在專案按「繼續推理」。
+## 4. Daily Use
 
-Danus 的驗證也是由模型執行，並非形式證明；關鍵數學結果仍需人工核對。網頁提供單一 worker 的常用流程；完整主代理、多 worker 與論文撰寫流程請參考 [Danus 文件](danus-setup/Danus/docs/operating-guide.md)。
+### Chat and PDFs
 
-### 搜尋來源與開關
+Open **Chat**, select **Local Research Assistant**, and send a message. Use the attachment button to upload a PDF.
 
-- **一般網頁**：Bing、Brave、Google、DuckDuckGo，經由自架 SearXNG 整合。
-- **免費資料 API**：Wikipedia、DuckDuckGo 即時答案。即時答案主要提供摘要與定義。
-- **論文**：arXiv、Crossref、IACR ePrint、Matlas。
+The search toggle above the chat controls whether the integrated tools may retrieve external information.
 
-所有已接入來源免金鑰、無按次 API 費用，但可能被限流或要求 CAPTCHA。「測試選取來源」可查看當下連線狀態。預設勾選 Bing、Wikipedia 與論文來源。
+PDF extraction can lose formulas, symbols, or layout. Check important expressions against the original document.
 
-「聊天」與「Danus 預設」分別控制。每個專案可覆寫 Danus 預設，驗證程序也會沿用專案選擇。關閉時，整合的搜尋、論文閱讀與定理搜尋工具會拒絕新查詢；已送出的請求可能繼續完成。
+### Danus projects
 
-這個開關控制工具，並非容器網路防火牆。Danus 工作程序仍有容器網路能力，代理指引要求遵守使用者的搜尋選擇。
+1. Click **＋** and enter a project name and mathematical problem.
+2. Choose whether to use Danus search defaults, enable search, or use existing information.
+3. Select **Create and start**.
+4. Open **Progress** for worker activity, **Results** for saved statements and proofs, **Literature** for retrieved sources, and **Fact graph** for dependencies.
+5. Use **Stop now** to end the current worker while keeping saved data.
+6. Use **Continue reasoning** to resume a stopped project.
 
-模型推理在你的模型服務執行；一般搜尋詞會送給所選外部來源。ePrint 使用官方 OAI-PMH 書目資料建立本機索引，初次準備後可搜尋歷史目錄，依使用需求最多每日更新一次。
+Danus verification is performed by a model. Important conclusions still require mathematical review; acceptance by Danus is not a formal proof guarantee.
 
-ePrint 搜尋取得題名、作者與摘要，不會自動下載受網站存取規則限制的 PDF。可從來源取得 PDF 後上傳聊天。arXiv 原文擷取優先使用保留 LaTeX 的 HTML，必要時退回 PDF 文字；擷取結果須核對公式與符號。
+The portal offers a common workflow with one worker. See the [Danus operating guide](danus-setup/Danus/docs/operating-guide.md) for main-agent coordination, multiple workers, and paper authoring.
 
-## 5. 重開機、停止與資料
+### Search sources and controls
 
-開啟 Docker Desktop，啟動自己的模型，再開啟工作區網址。需要手動補啟動時：
+| Category | Included sources |
+|---|---|
+| General web search through SearXNG | Bing, Brave, Google, DuckDuckGo |
+| Direct information APIs | Wikipedia, DuckDuckGo Instant Answers |
+| Papers and mathematical literature | arXiv, Crossref, IACR ePrint, Matlas |
+
+The included integrations require no paid search API keys. Providers may impose rate limits, return CAPTCHAs, or become unavailable. DuckDuckGo Instant Answers primarily supplies summaries and definitions.
+
+Use **Test selected sources** to check current availability. Defaults include Bing, Wikipedia, and the paper sources.
+
+Chat and Danus have separate preferences. Projects can inherit or override the Danus defaults; verification subprocesses inherit project preferences too.
+
+Disabling search blocks new calls to the integrated search, paper-reading, and theorem-search tools. Requests already in progress may finish. These preferences control the tools; worker containers retain network access, and agent instructions require respecting the settings.
+
+Model inference runs through your configured model service. Enabled searches send queries to the selected external providers.
+
+### IACR ePrint and paper reading
+
+ePrint search uses a local index of official OAI-PMH metadata, covering titles, authors, abstracts, and categories. Initial use may require index preparation. Refreshes occur on demand, at most once per day.
+
+These results are metadata and abstracts. The integration does not automatically download ePrint PDFs subject to the site's automated-access restrictions. Obtain a PDF from its source and upload it to chat when needed.
+
+arXiv reading prefers HTML that preserves LaTeX, with extracted PDF text as a fallback.
+
+### LaTeX and reports
+
+The image includes TeX Live. Danus main-agent tools provide the paper-writing workflows.
+
+A separately installed Tectonic runtime is not bundled. Danus human-summary PDF generation also requires Chromium, which this package does not install automatically.
+
+## 5. Restart, Stop, and Preserve Data
+
+After rebooting:
+
+1. Start Docker Desktop or Docker Engine.
+2. Start your local model.
+3. From the repository directory, run:
 
 ```bash
 docker compose up -d
 ```
 
-停止本套件的服務並保留資料：
+4. Open the workspace.
+5. Resume any projects you want to continue.
+
+Services may restart automatically according to their Docker restart policies.
+
+To stop this workspace while preserving its volumes:
 
 ```bash
 docker compose down
 ```
 
-資料放在這個 Compose 專案自己的 named volumes：
+| Volume | Contents |
+|---|---|
+| `danus-runtime` | Projects, results, trash, search preferences, literature cache, and runtime dependencies |
+| `open-webui-data` | Chats, attachments, and Open WebUI settings |
 
-- `danus-runtime`：專案、成果、回收筒、搜尋設定、文獻快取與工具執行環境。
-- `open-webui-data`：聊天紀錄、附件與 Open WebUI 設定。
+Actual volume names use the `COMPOSE_PROJECT_NAME` prefix. Back up both volumes to preserve your data. They are separate from Git and are not included when sharing source code.
 
-實際 volume 名稱會加上 `COMPOSE_PROJECT_NAME` 前綴。備份時請備份這兩個資料卷；分享 Git 原始碼不會包含它們。移除 volume 會失去其中資料。
+Deleting a volume deletes the data stored in it.
 
-## 6. 常見問題
+## 6. Troubleshooting
 
-**畫面顯示模型未連線**
+### Model disconnected
 
-先確認自己的模型容器正在執行，並檢查 `.env` 的網址和名稱。容器內的 `127.0.0.1` 指容器本身，不是你的 Windows/macOS 主機。
+Check the model service, `MODEL_BASE_URL`, and `MODEL_NAME`. Inside a container, `127.0.0.1` refers to that container, not your host.
 
-**`COPY ... .env` 找不到檔案**
+### Missing configuration during Docker COPY
 
-先執行 `scripts/prepare.ps1` 或 `scripts/prepare.sh`。這些本機設定依設計不會放入 Git，因此必須由範本建立。
+Run `scripts/prepare.ps1` or `scripts/prepare.sh` before building. The real configuration files are excluded from Git and must be created from the templates.
 
-**聊天有模型，但沒有搜尋工具**
+### Chat works but research tools are missing
 
-確認搜尋開關已開啟，重新整理並建立新聊天、選「本機研究助理」。可重跑：
+Enable search, refresh, create a new chat, and select **Local Research Assistant**. You can rerun:
 
 ```bash
 docker compose exec -T local-llm-webui /opt/danus/runtime/venv/bin/python /opt/webui/configure_research.py
 ```
 
-**ePrint 第一次查詢還沒有結果**
+### The first ePrint search has no results
 
-官方目錄可能仍在初始化，稍後重試。也可主動準備一次：
+The metadata index may still be initializing. Try again later, or prepare it explicitly:
 
 ```bash
 docker compose exec -T local-llm-webui /opt/danus/runtime/venv/bin/python -m danus.integrations.iacr
 ```
 
-**其他啟動問題**
+### Other startup issues
 
 ```bash
 docker compose ps
 docker compose logs --tail 80
 ```
 
-**想改連接埠**
+### Changing ports
 
-需同步調整 `docker-compose.yml`、`webui/portal.js`／`portal.html` 裡的聊天網址，以及 `scripts/start.*` 的等待／開啟網址。一般安裝建議保留預設值。
+Update the Compose port mappings, chat URLs in `webui/portal.js` and `webui/portal.html`, and readiness/opening URLs in `scripts/start.*` together.
 
-**LaTeX 與報告功能**
+## 7. Publish the Source
 
-既有 Dockerfile 提供 TeX Live。論文草稿流程由 Danus 主代理執行；本套件不包含額外安裝好的 Tectonic 執行資料。Danus 的 human-summary PDF 另需 Chromium，本版沒有自動安裝。
+The modified Danus source snapshot is included; no submodule initialization is required.
 
-## 7. 分享到 GitHub / GitLab
+Preserve [LICENSE](LICENSE), [NOTICE](NOTICE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and all bundled license files.
 
-本套件已攜帶修改後的 Danus 原始碼快照，**不需要另外初始化 submodule**。保留 [LICENSE](LICENSE)、[第三方聲明](THIRD_PARTY_NOTICES.md) 與各套件的授權檔案。
+### From a ZIP
 
-如果取得的是 ZIP，解壓縮後在套件根目錄執行：
+In the extracted repository directory:
 
 ```bash
 git init -b main
@@ -243,9 +304,9 @@ git remote add origin https://github.com/YOUR-ACCOUNT/YOUR-REPOSITORY.git
 git push -u origin main
 ```
 
-如果取得的是已初始化 Git 的資料夾，從 `git remote add origin` 那一行開始。請以自己的遠端儲存庫網址替換範例。
+Replace the URL with your own empty repository. If Git is already initialized, use its existing branch and configure the remote as appropriate.
 
-如果取得的是 `.bundle`，先還原成一般 Git 資料夾：
+### From a Git bundle
 
 ```bash
 git clone /path/to/danus-webui-v0.1.0.bundle danus-webui
@@ -254,38 +315,57 @@ git remote set-url origin https://github.com/YOUR-ACCOUNT/YOUR-REPOSITORY.git
 git push -u origin main
 ```
 
-`.gitignore` 會排除實際 `.env`、模型、執行資料與常見金鑰檔；上傳前仍應查看 `git status`。只分享這個套件資料夾的內容。
+The ignore rules exclude local environment files, models, runtime data, and common credential files. Review `git status` before publishing.
 
-### 原始碼上傳與公開架站
+### Public hosting
 
-本套件預設只綁定 `127.0.0.1`，Open WebUI 為本機免登入模式。它適合每位使用者在自己的電腦執行。上傳原始碼到 GitHub 不會把聊天或模型對外開放。
+The default ports bind to `127.0.0.1`, and Open WebUI authentication is disabled for local use. Publishing source code does not deploy the running application.
 
-若要改成網際網路上的多人服務，需要另外設計登入、權限、TLS 與反向代理；不能直接把目前免登入的服務公開。這也不是只上傳 HTML 就能工作的靜態網站，後端仍需要 Docker 與可用模型。
+Public hosting requires authentication, authorization, TLS, and an appropriate reverse proxy. Do not expose the default authentication-free configuration directly to the internet. The application requires its Docker backend and a reachable model.
 
-## 開發與測試
+## Development and Validation
 
 ```bash
 docker compose exec -T -e PYTHONPATH=/opt/webui local-llm-webui /opt/danus/runtime/venv/bin/python -m unittest discover -s /opt/webui/tests -v
 ```
 
-測試使用臨時專案，涵蓋停止／回收筒、論文擷取、ePrint 索引、搜尋開關、來源篩選與驗證程序的設定傳遞。
+Tests cover project stopping and trash behavior, paper extraction, ePrint indexing, search controls, source filtering, and project preferences in verification.
 
-這份發行套件的檢查範圍與限制見 [VALIDATION.md](VALIDATION.md)。
+The initial source release passed 31 unit tests plus Compose and script syntax checks. See [VALIDATION.md](VALIDATION.md) for the validation scope and limitations.
 
-## 目錄
+## Repository Layout
 
 ```text
-webui/                    整合介面、必要後端、搜尋設定、測試、靜態套件
-danus-setup/Danus/         修改後的 Danus 原始碼快照與原始授權
-danus-setup/Dockerfile     原樣保留的整合服務 Dockerfile
-danus-setup/start.sh       原樣保留的容器啟動程式
-danus-setup/*.env.example  不含私人資料的本機設定範本
-danus-setup/proxy-config/  內部協定轉接設定
-scripts/                  準備設定與首次啟動輔助程式
-docker-compose.yml        可分享的獨立 Compose 專案
-.env.example              自行填入模型網址與名稱
+webui/                    Portal, backend, search tools, tests, and static assets
+danus-setup/Danus/         Modified Danus source snapshot and upstream license
+danus-setup/Dockerfile     Preserved integration Dockerfile
+danus-setup/start.sh       Container startup script
+danus-setup/*.env.example  Local configuration templates
+danus-setup/proxy-config/  Internal API bridge settings
+scripts/                  Preparation and startup helpers
+docker-compose.yml        Workspace service definitions
+.env.example              Model address and ID template
+LICENSE                   Apache License 2.0
+NOTICE                    Attribution and distribution notices
+THIRD_PARTY_NOTICES.md     Third-party source and license information
+UPSTREAM_CHANGES.md        Changes to the Danus snapshot
+VALIDATION.md             Release validation scope
 ```
 
-## 授權與來源
+## License and Attribution
 
-本套件原始碼採 [Apache-2.0](LICENSE)，第三方檔案依各自授權。Danus 上游為 [frenzymath/Danus](https://github.com/frenzymath/Danus)，基準提交 `6d92e8d415933ca2ef52fd1a4da73fdfcd418f1c`。詳見 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+The integration source is distributed under [Apache License 2.0](LICENSE). Third-party components retain their own licenses:
+
+- Danus: Apache License 2.0.
+- KaTeX JavaScript/CSS and marked: MIT.
+- KaTeX fonts: SIL Open Font License 1.1, including reserved font names.
+- highlight.js: BSD 3-Clause.
+- Separately downloaded images and dependencies: their respective terms, including Open WebUI's license and branding requirements.
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details.
+
+Upstream: [frenzymath/Danus — Orchestrating Mathematical Reasoning Agents with Fact-Graph Memory](https://github.com/frenzymath/Danus).
+
+Baseline commit: `6d92e8d415933ca2ef52fd1a4da73fdfcd418f1c`.
+
+This is an independent integration, not an official release or endorsement by Danus, Open WebUI, or other upstream projects.
