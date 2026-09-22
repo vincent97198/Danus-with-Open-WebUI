@@ -1,0 +1,13 @@
+listen: ":8080"
+models:
+  - name: local-model
+    model: local-model
+    backends:
+      - url: http://local-llm-webui:7860/v1
+    responses_mode: translate
+    context_window: 65536
+    timeout: 900
+keys:
+  # Public placeholder for the internal-only Docker bridge, not a paid API key.
+  - key: sk-local-danus
+    name: danus

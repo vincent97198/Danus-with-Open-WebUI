@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Local LLM Chat</title>
+<!-- Markdown -->
+<script src="/static/marked.min.js"></script>
+<!-- KaTeX (LaTeX math) -->
+<link rel="stylesheet" href="/static/katex/katex.min.css">
+<script defer src="/static/katex/katex.min.js"></script>
+<script defer src="/static/katex/auto-render.min.js"></script>
+<!-- Highlight.js (code syntax) -->
+<link rel="stylesheet" href="/static/highlight/styles/github-dark.min.css">
+<script src="/static/highlight/highlight.min.js"></script>
+
+<style>
+  :root {
+    --bg: #0f1117;
+    --sidebar-bg: #1a1d27;
+    --chat-bg: #0f1117;
+    --bubble-user: #1e3a5f;
+    --bubble-ai: #1a1d27;
+    --border: #2a2d3e;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --input-bg: #1e2030;
+    --code-bg: #161b22;
+    --danger: #ef4444;
+    --success: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+  /* Sidebar */
+  #sidebar {
+    width: 260px; min-width: 260px; background: var(--sidebar-bg);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    transition: width 0.2s;
+  }
+  #sidebar-header {
+    padding: 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  #sidebar-header h1 { font-size: 15px; font-weight: 600; flex: 1; }
+  .model-badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 12px;
+    background: rgba(59,130,246,0.15); color: var(--accent);
+    border: 1px solid rgba(59,130,246,0.3);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #new-chat-btn {
+    margin: 12px; padding: 8px 14px; background: var(--accent);
+    border: none; border-radius: 8px; color: white; cursor: pointer;
+    font-size: 13px; display: flex; align-items: center; gap: 6px;
+    transition: background 0.15s;
+  }
+  #new-chat-btn:hover { background: var(--accent-hover); }
+  #conversations { flex: 1; overflow-y: auto; padding: 4px 8px; }
+  .conv-item {
+    padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 2px;
+    font-size: 13px; color: var(--text-muted); display: flex; align-items: center;
+    gap: 8px; transition: background 0.1s; position: relative;
+  }
+  .conv-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .conv-item.active { background: rgba(59,130,246,0.15); color: var(--text); }
+  .conv-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conv-del { opacity: 0; font-size: 11px; color: var(--danger); padding: 2px 4px;
+    border-radius: 4px; cursor: pointer; transition: opacity 0.1s; }
+  .conv-item:hover .conv-del { opacity: 1; }
+  #sidebar-footer { padding: 12px; border-top: 1px solid var(--border); }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);
+    display: inline-block; margin-right: 6px;
+  }
+  .status-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+
+  /* Main */
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #chat-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px; background: var(--bg);
+  }
+  #chat-header h2 { font-size: 15px; font-weight: 600; flex: 1; }
+  #clear-btn {
+    padding: 6px 12px; background: transparent; border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: 12px;
+    transition: all 0.15s;
+  }
+  #clear-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* Messages */
+  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  #messages::-webkit-scrollbar { width: 5px; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  .msg { display: flex; gap: 12px; max-width: 860px; width: 100%; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg.assistant { align-self: flex-start; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 8px; display: flex;
+    align-items: center; justify-content: center; font-size: 16px;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .msg.user .avatar { background: var(--bubble-user); }
+  .msg.assistant .avatar { background: #2d1b69; }
+  .bubble {
+    padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6;
+    max-width: calc(100% - 48px);
+  }
+  .msg.user .bubble { background: var(--bubble-user); border-bottom-right-radius: 4px; }
+  .msg.assistant .bubble { background: var(--bubble-ai); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
+
+  /* Markdown styles inside bubble */
+  .bubble h1,.bubble h2,.bubble h3 { margin: 12px 0 8px; font-weight: 600; line-height: 1.3; }
+  .bubble h1 { font-size: 1.3em; }
+  .bubble h2 { font-size: 1.15em; }
+  .bubble h3 { font-size: 1.05em; }
+  .bubble p { margin: 6px 0; }
+  .bubble ul,.bubble ol { margin: 6px 0 6px 20px; }
+  .bubble li { margin: 3px 0; }
+  .bubble code:not(.hljs) {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: 'Cascadia Code','Fira Code',monospace; font-size: 0.88em;
+    color: #e879f9;
+  }
+  .bubble pre {
+    background: var(--code-bg); border-radius: 8px; margin: 10px 0;
+    overflow-x: auto; border: 1px solid var(--border); position: relative;
+  }
+  .bubble pre code { padding: 14px; display: block; font-size: 13px; color: var(--text); }
+  .copy-btn {
+    position: absolute; right: 8px; top: 8px; background: rgba(255,255,255,0.1);
+    border: none; color: var(--text-muted); border-radius: 5px; padding: 3px 8px;
+    font-size: 11px; cursor: pointer; transition: all 0.15s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.2); color: var(--text); }
+  .bubble table { border-collapse: collapse; margin: 10px 0; width: 100%; font-size: 13px; }
+  .bubble th,.bubble td { border: 1px solid var(--border); padding: 6px 12px; }
+  .bubble th { background: rgba(255,255,255,0.05); font-weight: 600; }
+  .bubble blockquote {
+    border-left: 3px solid var(--accent); margin: 8px 0; padding: 4px 12px;
+    color: var(--text-muted); font-style: italic;
+  }
+  .bubble hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+  /* Image preview in messages */
+  .bubble img { max-width: 100%; border-radius: 8px; margin: 6px 0; }
+
+  /* Thinking indicator */
+  .thinking { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+  .thinking span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+    animation: bounce 1.2s infinite;
+  }
+  .thinking span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+  /* Image attach preview */
+  #image-previews {
+    display: flex; gap: 8px; padding: 8px 20px; flex-wrap: wrap;
+    border-top: 1px solid var(--border);
+  }
+  .img-preview-wrap {
+    position: relative; width: 64px; height: 64px; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .img-preview-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .img-preview-wrap .remove-img {
+    position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.7);
+    color: white; border: none; border-radius: 50%; width: 18px; height: 18px;
+    font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Input area */
+  #input-area {
+    padding: 16px 20px; border-top: 1px solid var(--border); background: var(--bg);
+  }
+  #input-box {
+    background: var(--input-bg); border: 1px solid var(--border); border-radius: 12px;
+    display: flex; align-items: flex-end; gap: 10px; padding: 10px 12px;
+    transition: border-color 0.15s;
+  }
+  #input-box:focus-within { border-color: var(--accent); }
+  #user-input {
+    flex: 1; background: transparent; border: none; outline: none; color: var(--text);
+    font-size: 14px; resize: none; max-height: 200px; line-height: 1.5;
+    font-family: inherit;
+  }
+  #user-input::placeholder { color: var(--text-muted); }
+  .icon-btn {
+    background: transparent; border: none; color: var(--text-muted); cursor: pointer;
+    padding: 4px; border-radius: 6px; display: flex; align-items: center;
+    transition: color 0.15s, background 0.15s; flex-shrink: 0;
+  }
+  .icon-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+  #send-btn {
+    background: var(--accent); border: none; color: white; border-radius: 8px;
+    width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; transition: background 0.15s; flex-shrink: 0;
+  }
+  #send-btn:hover { background: var(--accent-hover); }
+  #send-btn:disabled { background: var(--border); cursor: not-allowed; }
+  #input-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding: 0 2px; }
+  #input-meta span { font-size: 11px; color: var(--text-muted); }
+
+  /* System prompt */
+  #sys-prompt-section { margin-bottom: 10px; }
+  #sys-prompt-toggle { background: none; border: none; color: var(--text-muted); font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+  #sys-prompt-box {
+    width: 100%; background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 12px; padding: 8px 10px;
+    resize: vertical; outline: none; font-family: inherit; margin-top: 6px;
+    display: none;
+  }
+  #sys-prompt-box:focus { border-color: var(--accent); }
+
+  /* Welcome screen */
+  #welcome {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1; gap: 16px; color: var(--text-muted); text-align: center; padding: 40px;
+  }
+  #welcome .logo { font-size: 48px; margin-bottom: 8px; }
+  #welcome h2 { font-size: 20px; color: var(--text); font-weight: 600; }
+  #welcome p { font-size: 14px; max-width: 400px; }
+  .suggestion-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+  .chip {
+    padding: 8px 14px; border-radius: 20px; border: 1px solid var(--border);
+    font-size: 13px; cursor: pointer; background: var(--sidebar-bg);
+    transition: all 0.15s; color: var(--text-muted);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+
+  /* Scrollbar for sidebar conv list */
+  #conversations::-webkit-scrollbar { width: 4px; }
+  #conversations::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  /* Stop button */
+  #stop-btn {
+    display: none; padding: 6px 14px; background: transparent;
+    border: 1px solid var(--danger); border-radius: 6px; color: var(--danger);
+    cursor: pointer; font-size: 12px; transition: all 0.15s;
+  }
+  #stop-btn:hover { background: rgba(239,68,68,0.1); }
+  #stop-btn.visible { display: block; }
+  #danus-btn { margin: 0 12px 12px; padding: 9px 14px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--input-bg); color: var(--text); cursor: pointer; text-align: left; }
+  #danus-btn:hover { border-color: var(--accent); }
+  #danus-overlay { display: none; position: fixed; inset: 0; z-index: 20;
+    background: rgba(0,0,0,.72); align-items: center; justify-content: center; padding: 20px; }
+  #danus-overlay.open { display: flex; }
+  #danus-panel { width: min(680px, 100%); max-height: 90vh; overflow-y: auto; padding: 22px;
+    border: 1px solid var(--border); border-radius: 14px; background: var(--sidebar-bg); }
+  #danus-panel h2 { font-size: 19px; margin-bottom: 8px; }
+  #danus-panel p { color: var(--text-muted); font-size: 13px; line-height: 1.5; margin-bottom: 14px; }
+  #danus-panel label { display: block; font-size: 12px; margin: 12px 0 5px; }
+  #danus-panel input, #danus-panel textarea { width: 100%; padding: 9px 10px;
+    border: 1px solid var(--border); border-radius: 7px; background: var(--input-bg);
+    color: var(--text); font: inherit; font-size: 13px; }
+  #danus-panel textarea { min-height: 110px; resize: vertical; }
+  .danus-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .danus-actions button, .danus-project button { padding: 7px 11px; border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); background: var(--input-bg); cursor: pointer; }
+  .danus-actions button:hover, .danus-project button:hover { border-color: var(--accent); }
+  .danus-project button.danus-delete { color: #fca5a5; border-color: #8b3a3a; }
+  .danus-project button:disabled { opacity: .45; cursor: not-allowed; }
+  .danus-project { border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-top: 10px; }
+  .danus-project strong { display: block; margin-bottom: 4px; }
+  .danus-project small { color: var(--text-muted); display: block; margin-bottom: 10px; }
+  #danus-feedback { white-space: pre-wrap; font-size: 12px; color: var(--text-muted); margin: 8px 0; }
+  #danus-progress, #danus-results { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 16px; }
+  #danus-progress h3 { font-size: 16px; margin: 0 0 10px; }
+  #danus-progress h4 { font-size: 13px; margin: 16px 0 8px; }
+  .danus-worker { border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px;
+    margin: 8px 0; background: var(--input-bg); }
+  .danus-worker strong { font-size: 13px; }
+  .danus-worker small { display: block; color: var(--text-muted); margin-top: 4px; }
+  .danus-worker details { margin-top: 10px; }
+  .danus-worker summary { cursor: pointer; font-size: 12px; color: var(--text-muted); }
+  .danus-log { max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+    font: 11px/1.5 ui-monospace, Consolas, monospace; margin: 8px 0 0; }
+  .danus-event { border-left: 2px solid var(--border); padding: 2px 0 10px 12px;
+    margin: 0 0 0 5px; overflow-wrap: anywhere; }
+  .danus-event small { display: block; color: var(--text-muted); margin-bottom: 3px; }
+  .danus-event div { white-space: pre-wrap; font-size: 12px; line-height: 1.5; }
+  #danus-results h3 { font-size: 16px; margin: 0 0 10px; }
+  #danus-results h4 { font-size: 13px; margin: 16px 0 8px; }
+  #danus-results details { border: 1px solid var(--border); border-radius: 7px;
+    padding: 10px 12px; margin: 8px 0; background: var(--input-bg); }
+  #danus-results summary { cursor: pointer; line-height: 1.5; }
+  .danus-proof { padding-top: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+  .danus-proof p, .danus-proof pre { margin: 8px 0; }
+  .danus-proof pre { overflow-x: auto; }
+  .danus-meta { color: var(--text-muted); font-size: 12px; margin-top: 7px; }
+  @media (max-width: 700px) {
+    body { flex-direction: column; }
+    #sidebar { width: 100%; min-width: 0; flex-shrink: 0; display: grid;
+      grid-template-columns: 1fr 1fr; border-right: 0; border-bottom: 1px solid var(--border); }
+    #sidebar-header { grid-column: 1 / -1; padding: 8px 12px; }
+    #new-chat-btn, #danus-btn { margin: 6px; padding: 8px 10px; font-size: 12px; }
+    #conversations { grid-column: 1 / -1; display: flex; flex: none;
+      overflow-x: auto; max-height: 46px; }
+    #conversations:empty { display: none; }
+    .conv-item { min-width: 120px; max-width: 160px; }
+    #sidebar-footer { display: none; }
+    #main { min-height: 0; }
+    #chat-header { padding: 10px 12px; }
+    #messages { padding: 12px; }
+    #welcome { padding: 24px 16px; }
+    #input-area { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <span style="font-size:22px">🧠</span>
+    <div style="flex:1;min-width:0">
+      <h1>Local LLM</h1>
+      <div class="model-badge" id="model-name-badge">載入中...</div>
+    </div>
+  </div>
+  <button id="new-chat-btn" onclick="newConversation()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    新對話
+  </button>
+  <button id="danus-btn" onclick="openDanus()">∑ Danus 數學專案</button>
+  <div id="conversations"></div>
+  <div id="sidebar-footer">
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text" style="font-size:12px;color:var(--text-muted)">連線中...</span>
+  </div>
+</div>
+
+<div id="danus-overlay" onclick="if(event.target===this) closeDanus()">
+  <div id="danus-panel" role="dialog" aria-modal="true" aria-label="Danus 數學專案">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <h2>Danus 數學專案</h2>
+      <button class="icon-btn" onclick="closeDanus()" aria-label="關閉">✕</button>
+    </div>
+    <p>建立數學問題後，可啟動一名 Danus 證明 worker。只有通過獨立驗證的結果才會進入事實圖。</p>
+    <form id="danus-form" onsubmit="createDanusProject(event)">
+      <label for="danus-name">專案名稱（小寫英文）</label>
+      <input id="danus-name" required pattern="[a-z][a-z0-9_-]*" maxlength="50" placeholder="irrationality-proof">
+      <label for="danus-problem">數學問題</label>
+      <textarea id="danus-problem" required maxlength="20000" placeholder="請完整寫出欲證明的命題與假設"></textarea>
+      <div class="danus-actions">
+        <button type="submit">建立專案</button>
+        <button type="button" onclick="refreshDanus()">重新整理狀態</button>
+      </div>
+    </form>
+    <div id="danus-feedback" aria-live="polite"></div>
+    <div id="danus-projects"></div>
+    <div id="danus-progress" hidden aria-live="polite"></div>
+    <div id="danus-results" hidden aria-live="polite"></div>
+  </div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <div id="chat-header">
+    <h2 id="chat-title">新對話</h2>
+    <button id="stop-btn" onclick="stopGeneration()">⏹ 停止</button>
+    <button id="clear-btn" onclick="clearCurrentChat()">清除對話</button>
+  </div>
+
+  <div id="messages">
+    <div id="welcome">
+      <div class="logo">✨</div>
+      <h2>本地模型對話</h2>
+      <p>支援文字對話、圖片分析、數學公式 (LaTeX)、程式碼。<br>傳送訊息開始對話。</p>
+      <div class="suggestion-chips">
+        <div class="chip" onclick="sendSuggestion('請介紹你自己的能力')">🤖 介紹能力</div>
+        <div class="chip" onclick="sendSuggestion('請解釋 $E = mc^2$ 的含義，用 LaTeX 格式展示相關公式')">📐 數學公式</div>
+        <div class="chip" onclick="sendSuggestion('寫一個 Python 的快速排序演算法並解釋')">💻 程式碼</div>
+        <div class="chip" onclick="sendSuggestion('證明 $\\sqrt{2}$ 是無理數')">🔢 數學證明</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="image-previews" style="display:none"></div>
+
+  <div id="input-area">
+    <div id="sys-prompt-section">
+      <button id="sys-prompt-toggle" onclick="toggleSysPrompt()">▶ 系統提示詞</button>
+      <textarea id="sys-prompt-box" rows="2" placeholder="設定模型的角色或行為...（可選）"></textarea>
+    </div>
+    <div id="input-box">
+      <label class="icon-btn" title="上傳圖片">
+        <input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+      </label>
+      <textarea id="user-input" rows="1" placeholder="輸入訊息... (Enter 送出，Shift+Enter 換行)"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button id="send-btn" onclick="sendMessage()" title="送出">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <div id="input-meta">
+      <span id="token-info"></span>
+      <span>Shift+Enter 換行</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────
+let conversations = JSON.parse(localStorage.getItem('llm_conversations') || '[]');
+let currentId = null;
+let abortController = null;
+let pendingImages = []; // [{dataUrl, base64, mimeType}]
+
+// ─────────────────────────────────────────────
+// Marked config
+// ─────────────────────────────────────────────
+if (typeof marked !== 'undefined') {
+marked.setOptions({ breaks: true, gfm: true });
+const renderer = new marked.Renderer();
+renderer.code = (code, lang) => {
+  if (code && typeof code === 'object') {
+    lang = code.lang;
+    code = code.text;
+  }
+  code = String(code ?? '');
+  const language = lang && typeof hljs !== 'undefined' && hljs.getLanguage(lang) ? lang : 'plaintext';
+  let highlighted;
+  try {
+    highlighted = hljs.highlight(code, { language }).value;
+  } catch { highlighted = escHtml(code); }
+  return `<pre><button class="copy-btn" type="button">複製</button><code class="hljs language-${language}">${highlighted}</code></pre>`;
+};
+marked.use({ renderer });
+}
+
+// ─────────────────────────────────────────────
+// Model status
+// ─────────────────────────────────────────────
+async function checkStatus() {
+  try {
+    const r = await fetch('/api/health');
+    const j = await r.json();
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    if (j.status === 'ok') {
+      dot.className = 'status-dot online';
+      txt.textContent = '模型在線';
+    } else {
+      dot.className = 'status-dot';
+      txt.textContent = '離線';
+    }
+  } catch {
+    document.getElementById('status-text').textContent = '無法連線';
+  }
+  // Load model name
+  try {
+    const r = await fetch('/api/models');
+    const j = await r.json();
+    const name = j?.data?.[0]?.id || j?.model || 'local-model';
+    document.getElementById('model-name-badge').textContent = name;
+  } catch {}
+}
+
+// ─────────────────────────────────────────────
+// Conversations
+// ─────────────────────────────────────────────
+function saveConversations() {
+  localStorage.setItem('llm_conversations', JSON.stringify(conversations));
+}
+
+function newConversation() {
+  const id = Date.now().toString();
+  conversations.unshift({ id, title: '新對話', messages: [] });
+  saveConversations();
+  loadConversation(id);
+  renderConvList();
+}
+
+function loadConversation(id) {
+  currentId = id;
+  const conv = conversations.find(c => c.id === id);
+  document.getElementById('chat-title').textContent = conv?.title || '新對話';
+  renderMessages();
+  renderConvList();
+}
+
+function deleteConversation(id, e) {
+  e.stopPropagation();
+  conversations = conversations.filter(c => c.id !== id);
+  saveConversations();
+  if (currentId === id) {
+    if (conversations.length > 0) loadConversation(conversations[0].id);
+    else { currentId = null; renderMessages(); }
+  }
+  renderConvList();
+}
+
+function clearCurrentChat() {
+  if (!currentId) return;
+  const conv = conversations.find(c => c.id === currentId);
+  if (conv) { conv.messages = []; saveConversations(); renderMessages(); }
+}
+
+function renderConvList() {
+  const el = document.getElementById('conversations');
+  el.innerHTML = conversations.map(c => `
+    <div class="conv-item ${c.id === currentId ? 'active' : ''}" onclick="loadConversation('${c.id}')">
+      <span style="font-size:14px">💬</span>
+      <span class="conv-title">${escHtml(c.title)}</span>
+      <span class="conv-del" onclick="deleteConversation('${c.id}', event)">✕</span>
+    </div>
+  `).join('');
+}
+
+function getCurrentConv() {
+  return conversations.find(c => c.id === currentId);
+}
+
+// ─────────────────────────────────────────────
+// Render messages
+// ─────────────────────────────────────────────
+function renderMessages() {
+  const conv = getCurrentConv();
+  const el = document.getElementById('messages');
+
+  if (!conv || conv.messages.length === 0) {
+    el.innerHTML = `<div id="welcome">
+      <div class="logo">✨</div>
+      <h2>本地模型對話</h2>
+      <p>支援文字對話、圖片分析、數學公式 (LaTeX)、程式碼。<br>傳送訊息開始對話。</p>
+      <div class="suggestion-chips">
+        <div class="chip" onclick="sendSuggestion('請介紹你自己的能力')">🤖 介紹能力</div>
+        <div class="chip" onclick="sendSuggestion('請解釋 $E = mc^2$ 的含義，用 LaTeX 格式展示相關公式')">📐 數學公式</div>
+        <div class="chip" onclick="sendSuggestion('寫一個 Python 的快速排序演算法並解釋')">💻 程式碼</div>
+        <div class="chip" onclick="sendSuggestion('證明 $\\\\sqrt{2}$ 是無理數')">🔢 數學證明</div>
+      </div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = conv.messages.map(m => renderMsgHtml(m)).join('');
+  renderMath();
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderMsgHtml(m) {
+  const isUser = m.role === 'user';
+  const avatar = isUser ? '👤' : '🤖';
+
+  let contentHtml = '';
+  if (Array.isArray(m.content)) {
+    // Vision message with images
+    for (const part of m.content) {
+      if (part.type === 'text') {
+        contentHtml += isUser ? `<p>${escHtml(part.text)}</p>` : parseMarkdown(part.text);
+      } else if (part.type === 'image_url') {
+        contentHtml += `<img src="${part.image_url.url}" style="max-height:200px">`;
+      }
+    }
+  } else {
+    contentHtml = isUser ? `<p>${escHtml(m.content)}</p>` : parseMarkdown(m.content);
+  }
+
+  return `<div class="msg ${m.role}">
+    <div class="avatar">${avatar}</div>
+    <div class="bubble">${contentHtml}</div>
+  </div>`;
+}
+
+function parseMarkdown(text) {
+  if (typeof marked === 'undefined') return '<p>' + escHtml(text) + '</p>';
+  // Protect LaTeX before markdown parsing
+  const latexBlocks = [];
+  let processed = text
+    .replace(/\$\$[\s\S]+?\$\$/g, m => { latexBlocks.push(m); return `%%LATEX${latexBlocks.length-1}%%`; })
+    .replace(/\$[^\n$]+?\$/g, m => { latexBlocks.push(m); return `%%LATEX${latexBlocks.length-1}%%`; })
+    .replace(/\\\[[\s\S]+?\\\]/g, m => { latexBlocks.push(m); return `%%LATEX${latexBlocks.length-1}%%`; })
+    .replace(/\\\(.+?\\\)/g, m => { latexBlocks.push(m); return `%%LATEX${latexBlocks.length-1}%%`; });
+
+  let html = marked.parse(processed);
+  // Restore LaTeX
+  html = html.replace(/%%LATEX(\d+)%%/g, (_, i) => latexBlocks[parseInt(i)]);
+  return sanitizeHtml(html);
+}
+
+function sanitizeHtml(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const allowed = new Set(['P','BR','H1','H2','H3','H4','H5','H6','UL','OL','LI',
+    'STRONG','EM','DEL','BLOCKQUOTE','PRE','CODE','BUTTON','TABLE','THEAD',
+    'TBODY','TR','TH','TD','A','HR','SPAN']);
+  for (const el of [...doc.body.querySelectorAll('*')]) {
+    if (!allowed.has(el.tagName)) { el.remove(); continue; }
+    for (const attr of [...el.attributes]) {
+      const key = attr.name.toLowerCase();
+      if (key === 'href' && el.tagName === 'A' && /^(https?:|mailto:)/i.test(attr.value)) continue;
+      if (key === 'class' && ['CODE','BUTTON','SPAN'].includes(el.tagName)) continue;
+      el.removeAttribute(attr.name);
+    }
+    if (el.tagName === 'A') {
+      el.setAttribute('target', '_blank');
+      el.setAttribute('rel', 'noopener noreferrer');
+    }
+  }
+  return doc.body.innerHTML;
+}
+
+function renderMath() {
+  if (typeof renderMathInElement !== 'undefined') {
+    document.querySelectorAll('.bubble, .danus-proof').forEach(el => {
+      renderMathInElement(el, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\[', right: '\\]', display: true },
+          { left: '\\(', right: '\\)', display: false }
+        ],
+        throwOnError: false
+      });
+    });
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────
+// Image handling
+// ─────────────────────────────────────────────
+function handleFiles(files) {
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      const base64 = dataUrl.split(',')[1];
+      const mimeType = file.type;
+      pendingImages.push({ dataUrl, base64, mimeType });
+      renderImagePreviews();
+    };
+    reader.readAsDataURL(file);
+  }
+  document.getElementById('file-input').value = '';
+}
+
+function renderImagePreviews() {
+  const el = document.getElementById('image-previews');
+  if (pendingImages.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'flex';
+  el.innerHTML = pendingImages.map((img, i) => `
+    <div class="img-preview-wrap">
+      <img src="${img.dataUrl}">
+      <button class="remove-img" onclick="removeImage(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeImage(i) {
+  pendingImages.splice(i, 1);
+  renderImagePreviews();
+}
+
+// ─────────────────────────────────────────────
+// Send message
+// ─────────────────────────────────────────────
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+}
+
+function sendSuggestion(text) {
+  if (!currentId) newConversation();
+  document.getElementById('user-input').value = text;
+  sendMessage();
+}
+
+async function sendMessage() {
+  if (abortController) return;
+  const input = document.getElementById('user-input');
+  const text = input.value.trim();
+  if (!text && pendingImages.length === 0) return;
+  if (!currentId) newConversation();
+
+  const conv = getCurrentConv();
+
+  // Build message content
+  let userContent;
+  if (pendingImages.length > 0) {
+    userContent = [
+      ...pendingImages.map(img => ({
+        type: 'image_url',
+        image_url: { url: `data:${img.mimeType};base64,${img.base64}` }
+      })),
+      { type: 'text', text: text || '請描述這張圖片' }
+    ];
+  } else {
+    userContent = text;
+  }
+
+  conv.messages.push({ role: 'user', content: userContent });
+  input.value = '';
+  input.style.height = 'auto';
+  pendingImages = [];
+  renderImagePreviews();
+
+  // Update conv title
+  if (conv.messages.length === 1) {
+    conv.title = (typeof userContent === 'string' ? userContent : text).slice(0, 30) || '圖片對話';
+    document.getElementById('chat-title').textContent = conv.title;
+  }
+  saveConversations();
+
+  // Remove welcome screen, render user message
+  const messagesEl = document.getElementById('messages');
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+
+  messagesEl.insertAdjacentHTML('beforeend', renderMsgHtml({ role: 'user', content: userContent }));
+
+  // Add thinking indicator
+  const thinkId = 'think-' + Date.now();
+  messagesEl.insertAdjacentHTML('beforeend', `
+    <div class="msg assistant" id="${thinkId}">
+      <div class="avatar">🤖</div>
+      <div class="bubble"><div class="thinking"><span></span><span></span><span></span></div></div>
+    </div>`);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  // Disable send, show stop
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('stop-btn').classList.add('visible');
+
+  // Build API payload
+  const sysPrompt = document.getElementById('sys-prompt-box').value.trim();
+  const apiMessages = [];
+  if (sysPrompt) apiMessages.push({ role: 'system', content: sysPrompt });
+  apiMessages.push(...conv.messages);
+
+  abortController = new AbortController();
+
+  let fullText = '';
+  let thinkEl = document.getElementById(thinkId);
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: apiMessages, stream: true }),
+      signal: abortController.signal
+    });
+    if (!resp.ok) {
+      const detail = await resp.json().catch(() => ({}));
+      throw new Error(detail.detail || `HTTP ${resp.status}`);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') break;
+        try {
+          const json = JSON.parse(data);
+          if (json.error) throw new Error(json.error);
+          const delta = json.choices?.[0]?.delta?.content;
+          if (delta) {
+            fullText += delta;
+            thinkEl = document.getElementById(thinkId);
+            if (thinkEl) {
+              thinkEl.querySelector('.bubble').innerHTML = parseMarkdown(fullText) + '<span style="display:inline-block;width:2px;height:1em;background:var(--accent);margin-left:2px;animation:blink 1s infinite;vertical-align:text-bottom"></span>';
+              messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
+          }
+        } catch (error) {
+          if (error.message && !error.message.startsWith('Unexpected')) throw error;
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      fullText = '❌ 發生錯誤：' + err.message;
+    } else {
+      fullText = fullText || '(已停止)';
+    }
+  }
+
+  // Finalize
+  thinkEl = document.getElementById(thinkId);
+  if (thinkEl) {
+    thinkEl.querySelector('.bubble').innerHTML = parseMarkdown(fullText || '(無回覆)');
+  }
+
+  conv.messages.push({ role: 'assistant', content: fullText });
+  saveConversations();
+  renderConvList();
+  renderMath();
+
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('stop-btn').classList.remove('visible');
+  abortController = null;
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function stopGeneration() {
+  if (abortController) { abortController.abort(); }
+}
+
+// ─────────────────────────────────────────────
+// Misc
+// ─────────────────────────────────────────────
+function copyCode(btn) {
+  const code = btn.nextElementSibling.textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = '已複製!';
+    setTimeout(() => btn.textContent = '複製', 2000);
+  });
+}
+
+document.getElementById('messages').addEventListener('click', event => {
+  const button = event.target.closest('.copy-btn');
+  if (button) copyCode(button);
+});
+
+function toggleSysPrompt() {
+  const box = document.getElementById('sys-prompt-box');
+  const btn = document.getElementById('sys-prompt-toggle');
+  if (box.style.display === 'none' || !box.style.display) {
+    box.style.display = 'block';
+    btn.textContent = '▼ 系統提示詞';
+  } else {
+    box.style.display = 'none';
+    btn.textContent = '▶ 系統提示詞';
+  }
+}
+
+// Danus project controls
+let selectedDanusProject = null;
+let danusProgressRequestId = 0;
+let danusResultsRequestId = 0;
+function openDanus(name = null) {
+  if (name) selectedDanusProject = name;
+  document.getElementById('danus-overlay').classList.add('open');
+  refreshDanus();
+}
+
+function closeDanus() {
+  document.getElementById('danus-overlay').classList.remove('open');
+  danusProgressRequestId++;
+  danusResultsRequestId++;
+}
+
+async function danusRequest(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+  return data;
+}
+
+async function refreshDanus() {
+  const feedback = document.getElementById('danus-feedback');
+  const list = document.getElementById('danus-projects');
+  try {
+    const [health, projects] = await Promise.all([
+      danusRequest('/api/danus/health'),
+      danusRequest('/api/danus/projects')
+    ]);
+    feedback.textContent = health.verifier
+      ? 'Danus 驗證服務已就緒。'
+      : 'Danus 驗證服務尚未就緒，請檢查容器啟動記錄。';
+    if (!projects.length) {
+      list.innerHTML = '<p>尚無數學專案。</p>';
+      document.getElementById('danus-progress').hidden = true;
+      document.getElementById('danus-results').hidden = true;
+      selectedDanusProject = null;
+      return;
+    }
+    const details = await Promise.all(projects.map(p =>
+      danusRequest('/api/danus/projects/' + encodeURIComponent(p.project))
+        .catch(() => ({ workers: [] }))
+    ));
+    list.innerHTML = projects.map((p, i) => {
+      const states = details[i].workers.map(w =>
+        `${escHtml(w.worker)}：${escHtml(w.state)}，第 ${Number(w.round || 0)} 輪`
+      ).join('；');
+      const name = escHtml(p.project);
+      const arg = escHtml(JSON.stringify(p.project));
+      const live = Number(p.live || 0);
+      return `<div class="danus-project">
+        <strong>${name}</strong>
+        <small>${live}/${Number(p.workers || 0)} 位 worker 執行中 · ${states || '尚無狀態'}</small>
+        <button onclick="openDanusProject(${arg})">查看過程與結果</button>
+        <button onclick="controlDanus(${arg}, 'start')">啟動</button>
+        <button onclick="controlDanus(${arg}, 'stop')">立即停止</button>
+        <button class="danus-delete" onclick="deleteDanusProject(${arg})" ${live > 0 ? 'disabled title="請先停止執行中的 worker"' : ''}>刪除專案</button>
+      </div>`;
+    }).join('');
+    if (!projects.some(p => p.project === selectedDanusProject)) {
+      selectedDanusProject = projects[0].project;
+    }
+    await openDanusProject(selectedDanusProject);
+  } catch (error) {
+    feedback.textContent = '無法讀取 Danus：' + error.message;
+    list.innerHTML = '';
+  }
+}
+
+function formatDanusElapsed(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  return hours ? `${hours} 小時 ${minutes} 分` : minutes ? `${minutes} 分 ${secs} 秒` : `${secs} 秒`;
+}
+
+function formatDanusTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('zh-TW');
+}
+
+async function openDanusProject(name) {
+  selectedDanusProject = name;
+  if (window.parent !== window) {
+    window.parent.postMessage({ type: 'danus-project-selected', project: name }, window.location.origin);
+  }
+  await Promise.all([showDanusProgress(name), showDanusResults(name)]);
+}
+
+async function showDanusProgress(name, quiet = false) {
+  const box = document.getElementById('danus-progress');
+  const requestId = ++danusProgressRequestId;
+  box.hidden = false;
+  if (!quiet) box.textContent = '正在讀取中間狀態…';
+  try {
+    const data = await danusRequest('/api/danus/projects/' + encodeURIComponent(name) + '/progress');
+    if (requestId !== danusProgressRequestId || selectedDanusProject !== name) return;
+    const workers = Array.isArray(data.workers) ? data.workers : [];
+    const recent = Array.isArray(data.recent_events) ? data.recent_events
+      : workers.flatMap(w => (Array.isArray(w.events) ? w.events.map(e => ({ ...e, worker: w.worker })) : []));
+    const openLogs = new Map();
+    if (quiet) box.querySelectorAll('.danus-worker details[open]').forEach(el => {
+      openLogs.set(el.dataset.workerIndex, el.querySelector('.danus-log')?.scrollTop || 0);
+    });
+    const panel = document.getElementById('danus-panel');
+    const scrollTop = panel.scrollTop;
+    const workerHtml = workers.map((w, index) => {
+      const round = Number(w.round || 0);
+      const age = w.age_s == null ? '' : ` · ${w.alive ? '本輪已執行' : '距上輪狀態'} ${formatDanusElapsed(w.age_s)}`;
+      const logTime = w.last_log_at ? `<small>工作記錄更新：${escHtml(formatDanusTime(w.last_log_at))}</small>` : '';
+      const fact = w.last_fact_id ? `<small>最新事實 ID：${escHtml(w.last_fact_id)}</small>` : '';
+      const state = w.label || w.state || '狀態未知';
+      const log = w.log_tail ? `<details data-worker-index="${index}"><summary>工作記錄（最近一輪）</summary>
+        <pre class="danus-log">${escHtml(String(w.log_tail).slice(-20000))}</pre></details>` : '';
+      return `<div class="danus-worker"><strong>${escHtml(w.worker || 'worker')}</strong>
+        <small>${escHtml(state)} · 第 ${Number.isFinite(round) ? round : 0} 輪${escHtml(age)}</small>${logTime}${fact}${log}</div>`;
+    }).join('');
+    const eventHtml = recent.slice(0, 12).map(e => {
+      const round = e.round == null ? '' : `第 ${Number(e.round) || 0} 輪`;
+      const label = [formatDanusTime(e.time), e.worker, round, e.kind].filter(Boolean).join(' · ');
+      const content = String(e.text || e.message || '無詳細內容').slice(0, 4000);
+      return `<div class="danus-event"><small>${escHtml(label)}</small><div>${escHtml(content)}</div></div>`;
+    }).join('');
+    box.innerHTML = `<h3>${escHtml(name)} 的中間狀態</h3>
+      <div class="danus-meta">執行時每 5 秒自動更新；中間記錄尚未經過獨立驗證。</div>
+      <h4>Worker</h4>${workerHtml || '<p>尚無 worker；按「啟動」開始。</p>'}
+      <h4>近期進度</h4>${eventHtml || '<p>目前尚無進度事件。</p>'}`;
+    for (const [index, logScrollTop] of openLogs) {
+      const logDetails = box.querySelector(`.danus-worker details[data-worker-index="${index}"]`);
+      if (logDetails) {
+        logDetails.open = true;
+        logDetails.querySelector('.danus-log').scrollTop = logScrollTop;
+      }
+    }
+    if (quiet) panel.scrollTop = scrollTop;
+  } catch (error) {
+    if (requestId === danusProgressRequestId && selectedDanusProject === name) {
+      box.textContent = '無法讀取中間狀態：' + error.message;
+    }
+  }
+}
+
+async function showDanusResults(name) {
+  selectedDanusProject = name;
+  const box = document.getElementById('danus-results');
+  const requestId = ++danusResultsRequestId;
+  box.hidden = false;
+  box.textContent = '正在讀取結果…';
+  try {
+    const data = await danusRequest('/api/danus/projects/' + encodeURIComponent(name) + '/results');
+    if (requestId !== danusResultsRequestId || selectedDanusProject !== name) return;
+    const facts = data.facts.map(f => `<details>
+      <summary>${escHtml(f.statement || f.fact_id)}</summary>
+      <div class="danus-meta">事實 ID：${escHtml(f.fact_id)} · 已通過獨立驗證</div>
+      <div class="danus-proof">${parseMarkdown(f.proof || '')}</div>
+    </details>`).join('');
+    const checks = data.verifications.map(v => {
+      const verdict = v.verdict === 'correct' ? '通過' : v.verdict === 'wrong' ? '未通過' : '驗證錯誤';
+      const time = v.timestamp_utc ? new Date(v.timestamp_utc).toLocaleString('zh-TW') : '';
+      return `<details><summary>${escHtml(verdict)}：${escHtml(v.claim || '')}</summary>
+        <div class="danus-meta">${escHtml(time)}${v.fact_id ? ' · 事實 ID：' + escHtml(v.fact_id) : ''}</div>
+        <div class="danus-proof">${parseMarkdown(v.evidence || '')}</div>
+      </details>`;
+    }).join('');
+    box.innerHTML = `<h3>${escHtml(name)} 的結果</h3>
+      <h4>已驗證成果（${Number(data.fact_count || 0)}）</h4>
+      ${facts || '<p>目前尚無通過驗證的成果。請查看上方的 worker 狀態與工作記錄。</p>'}
+      <h4>驗證紀錄（${Number(data.verification_count || 0)}）</h4>
+      ${checks || '<p>尚無驗證紀錄。</p>'}`;
+    renderMath();
+  } catch (error) {
+    if (requestId === danusResultsRequestId && selectedDanusProject === name) {
+      box.textContent = '無法讀取結果：' + error.message;
+    }
+  }
+}
+
+async function createDanusProject(event) {
+  event.preventDefault();
+  const name = document.getElementById('danus-name').value.trim();
+  const problem = document.getElementById('danus-problem').value.trim();
+  const feedback = document.getElementById('danus-feedback');
+  try {
+    await danusRequest('/api/danus/projects', {
+      method: 'POST', body: JSON.stringify({ name, problem })
+    });
+    feedback.textContent = `已建立 ${name}。按「啟動」開始證明。`;
+    document.getElementById('danus-form').reset();
+    selectedDanusProject = name;
+    await refreshDanus();
+    notifyDanusProjectsChanged();
+  } catch (error) {
+    feedback.textContent = '建立失敗：' + error.message;
+  }
+}
+
+function notifyDanusProjectsChanged() {
+  if (window.parent !== window) {
+    window.parent.postMessage({ type: 'danus-projects-changed' }, window.location.origin);
+  }
+}
+
+async function deleteDanusProject(name) {
+  const feedback = document.getElementById('danus-feedback');
+  try {
+    const projects = await danusRequest('/api/danus/projects');
+    const project = projects.find(item => item.project === name);
+    if (!project) {
+      feedback.textContent = '找不到此專案，請重新整理狀態。';
+      await refreshDanus();
+      return;
+    }
+    if (Number(project.live || 0) > 0) {
+      feedback.textContent = '請先停止執行中的 worker，才能刪除專案。';
+      await refreshDanus();
+      return;
+    }
+    if (!window.confirm(`將「${name}」移到回收筒？成果與記錄會保留，可以從整合頁面的回收筒還原。`)) return;
+    await danusRequest('/api/danus/admin/projects/' + encodeURIComponent(name), {
+      method: 'DELETE'
+    });
+    if (selectedDanusProject === name) selectedDanusProject = null;
+    await refreshDanus();
+    notifyDanusProjectsChanged();
+    feedback.textContent = `已將 ${name} 移到回收筒。可從整合頁面還原。`;
+  } catch (error) {
+    feedback.textContent = '刪除失敗：' + error.message;
+  }
+}
+
+async function controlDanus(name, action) {
+  const feedback = document.getElementById('danus-feedback');
+  try {
+    await danusRequest('/api/danus/projects/' + encodeURIComponent(name) + '/' + action,
+      { method: 'POST' });
+    selectedDanusProject = name;
+    await refreshDanus();
+    feedback.textContent = `${name} 已${action === 'start' ? '啟動' : '停止'}。`;
+  } catch (error) {
+    feedback.textContent = '操作失敗：' + error.message;
+  }
+}
+
+// Add blink keyframe
+const style = document.createElement('style');
+style.textContent = '@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }';
+document.head.appendChild(style);
+
+// ─────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────
+window.addEventListener('load', () => {
+  checkStatus();
+  setInterval(checkStatus, 15000);
+  setInterval(() => {
+    if (selectedDanusProject && document.getElementById('danus-overlay').classList.contains('open')) {
+      showDanusProgress(selectedDanusProject, true);
+    }
+  }, 5000);
+  renderConvList();
+  if (conversations.length > 0) {
+    loadConversation(conversations[0].id);
+  }
+});
+
+// Drag & drop images
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  if (files.length) handleFiles(files);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+use_default_settings:
+  engines:
+    keep_only:
+      - duckduckgo
+      - bing
+      - google
+      - brave
+      - arxiv
+      - crossref
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json
+server:
+  # Example value for a local-only service. Replace for your own deployment.
+  secret_key: "danus-webui-public-example-change-me"
+  limiter: false
+  image_proxy: false
+outgoing:
+  request_timeout: 8.0
+  max_request_timeout: 15.0
+engines:
+  - name: brave
+    disabled: false
+  - name: google
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: arxiv
+    disabled: false
+    categories: [general, science]
+  - name: crossref
+    disabled: false
+    categories: [general, science]

@@ -1,0 +1,76 @@
+name: ${COMPOSE_PROJECT_NAME:-danus-webui}
+
+services:
+  responses-proxy:
+    image: ghcr.io/yatesdr/go-llm-proxy@sha256:795f66148ca2baf5aa032e171916e3fdf1cd1a2d99d24f93b0ce55944642663e
+    volumes:
+      - ./danus-setup/proxy-config:/config:ro
+    restart: unless-stopped
+
+  local-llm-webui:
+    image: danus-webui-app:0.1.0
+    build:
+      context: .
+      dockerfile: danus-setup/Dockerfile
+    ports:
+      - "127.0.0.1:7860:7860"
+    environment:
+      MODEL_BASE_URL: ${MODEL_BASE_URL:-http://host.docker.internal:8080}
+      MODEL_NAME: ${MODEL_NAME:?Set MODEL_NAME in .env first}
+      DANUS_ROOT: /opt/danus
+      SEARXNG_URL: http://searxng:8080/search
+      DANUS_LITERATURE_CACHE: /opt/danus/runtime/literature-cache
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - danus-runtime:/opt/danus/runtime
+    depends_on:
+      - responses-proxy
+      - searxng
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.11.4
+    ports:
+      - "127.0.0.1:3000:8080"
+    environment:
+      OPENAI_API_BASE_URL: ${MODEL_BASE_URL:-http://host.docker.internal:8080}/v1
+      OPENAI_API_KEY: local
+      ENABLE_OLLAMA_API: "false"
+      WEBUI_AUTH: "false"
+      ENABLE_WEB_SEARCH: "true"
+      WEB_SEARCH_ENGINE: searxng
+      SEARXNG_QUERY_URL: "http://local-llm-webui:7860/api/search/web?q=<query>&format=json"
+      WEB_SEARCH_RESULT_COUNT: "5"
+      BYPASS_WEB_SEARCH_EMBEDDING_AND_RETRIEVAL: "true"
+      DEFAULT_MODEL_PARAMS: '{"function_calling":"native"}'
+      DEFAULT_MODEL_METADATA: '{"capabilities":{"web_search":true},"defaultFeatureIds":["web_search"]}'
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - open-webui-data:/app/backend/data
+    restart: unless-stopped
+
+  searxng:
+    image: searxng/searxng@sha256:4109ebf36dc291931c5b43f5ee451c517085255aecfa71f8ffae21000ce5c5fa
+    volumes:
+      - ./webui/searxng-settings.yml:/etc/searxng/settings.yml:ro
+    restart: unless-stopped
+
+  unified-webui:
+    image: nginx:stable-alpine
+    ports:
+      - "127.0.0.1:3001:80"
+    volumes:
+      - ./webui/portal.html:/usr/share/nginx/html/index.html:ro
+      - ./webui/portal.css:/usr/share/nginx/html/portal.css:ro
+      - ./webui/portal.js:/usr/share/nginx/html/portal.js:ro
+      - ./webui/portal-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - local-llm-webui
+      - open-webui
+    restart: unless-stopped
+
+volumes:
+  danus-runtime:
+  open-webui-data:

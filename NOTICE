@@ -1,0 +1,22 @@
+Danus Local Research Workspace
+Standalone source distribution, 2026-09-22.
+
+Danus: Copyright 2026 FrenzyMath.
+Integration and packaging: Copyright 2026 Danus Local Research Workspace
+contributors, distributed under Apache License 2.0.
+
+This distribution includes a modified source snapshot of Danus:
+https://github.com/frenzymath/Danus
+Baseline commit: 6d92e8d415933ca2ef52fd1a4da73fdfcd418f1c
+
+The Danus license and original notices are preserved in
+danus-setup/Danus/LICENSE and its source files.
+Modified upstream paths are listed in UPSTREAM_CHANGES.md.
+
+Bundled KaTeX, marked and highlight.js assets retain the notices in
+webui/static/licenses/. KaTeX fonts retain their SIL OFL 1.1 license and
+reserved font names. Third-party container images and dependencies retain
+their own licenses; see THIRD_PARTY_NOTICES.md.
+
+This package is an independent integration, not an official release or
+endorsement by Danus, Open WebUI, or the other upstream projects.
